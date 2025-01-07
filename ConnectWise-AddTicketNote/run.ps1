@@ -73,9 +73,8 @@ function Add-ConnectWiseTicketNote {
     
     # Set up the authentication headers
     $headers = @{
-        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${ClientId}${PublicKey}:${PrivateKey}"))
+        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${ClientId}+${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
-        "clientId" = $ClientId
     }
 
     # Make the API request to add the note
