@@ -91,7 +91,7 @@ if ($resultCode -Eq 200) {
 }
 
 $body = @{
-    Message      = $message
+    Message      = $message + $teamsList
     Teams        = $teamsList
     TicketId     = $TicketId
     ResultCode   = $resultCode
