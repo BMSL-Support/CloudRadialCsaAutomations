@@ -1,46 +1,25 @@
-<# 
-
+<#
 .SYNOPSIS
-    
     This function is used to add a note to a ConnectWise ticket.
 
 .DESCRIPTION
-                    
     This function is used to add a note to a ConnectWise ticket.
-                    
     The function requires the following environment variables to be set:
-                    
-    ConnectWisePsa_ApiBaseUrl - Base URL of the ConnectWise API
-    ConnectWisePsa_ApiCompanyId - Company Id of the ConnectWise API
-    ConnectWisePsa_ApiPublicKey - Public Key of the ConnectWise API
-    ConnectWisePsa_ApiPrivateKey - Private Key of the ConnectWise API
-    ConnectWisePsa_ApiClientId - Client Id of the ConnectWise API
-    SecurityKey - Optional, use this as an additional step to secure the function
-                    
-    The function requires the following modules to be installed:
-                   
-    None        
+    - ConnectWisePsa_ApiBaseUrl: Base URL of the ConnectWise API
+    - ConnectWisePsa_ApiCompanyId: Company Id of the ConnectWise API
+    - ConnectWisePsa_ApiPublicKey: Public Key of the ConnectWise API
+    - ConnectWisePsa_ApiPrivateKey: Private Key of the ConnectWise API
+    - ConnectWisePsa_ApiClientId: Client Id of the ConnectWise API
+    - SecurityKey: Optional, use this as an additional step to secure the function
 
 .INPUTS
-
-    TicketId - string value of numeric ticket number
-    Message - text of note to add
-    Internal - boolean indicating whether not should be internal only
-    SecurityKey - optional security key to secure the function
-
-    JSON Structure
-
-    {
-        "TicketId": "123456",
-        "Message": "This is a note",
-        "Internal": true,
-        "SecurityKey", "optional"
-    }
+    - TicketId: string value of numeric ticket number
+    - Message: text of note to add
+    - Internal: boolean indicating whether note should be internal only
+    - SecurityKey: optional security key to secure the function
 
 .OUTPUTS
-    
     JSON structure of the response from the ConnectWise API
-
 #>
 
 using namespace System.Net
@@ -67,6 +46,8 @@ function Add-ConnectWiseTicketNote {
         text = $Text
         detailDescriptionFlag = $true
         internalAnalysisFlag = $Internal
+        #resolutionFlag = $false
+        #customerUpdatedFlag = $false 
     } | ConvertTo-Json
     
     # Set up the authentication headers
@@ -81,17 +62,6 @@ function Add-ConnectWiseTicketNote {
     Write-Host $result
     return $result
 }
-
-# Log the incoming request data
-Write-Host "Request Body: $($Request.Body | ConvertTo-Json)"
-Write-Host "Request Headers: $($Request.Headers | ConvertTo-Json)"
-
-# Log environment variables
-Write-Host "ConnectWisePsa_ApiBaseUrl: $env:ConnectWisePsa_ApiBaseUrl"
-Write-Host "ConnectWisePsa_ApiCompanyId: $env:ConnectWisePsa_ApiCompanyId"
-Write-Host "ConnectWisePsa_ApiPublicKey: $env:ConnectWisePsa_ApiPublicKey"
-Write-Host "ConnectWisePsa_ApiPrivateKey: $env:ConnectWisePsa_ApiPrivateKey"
-Write-Host "ConnectWisePsa_ApiClientId: $env:ConnectWisePsa_ApiClientId"
 
 $TicketId = $Request.Body.TicketId
 $Text = $Request.Body.Message
@@ -112,7 +82,7 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $Internal = $false
+    $internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
