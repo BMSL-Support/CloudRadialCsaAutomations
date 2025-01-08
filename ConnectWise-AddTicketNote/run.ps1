@@ -1,25 +1,46 @@
-<#
+<# 
+
 .SYNOPSIS
+    
     This function is used to add a note to a ConnectWise ticket.
 
 .DESCRIPTION
+                    
     This function is used to add a note to a ConnectWise ticket.
+                    
     The function requires the following environment variables to be set:
-    - ConnectWisePsa_ApiBaseUrl: Base URL of the ConnectWise API
-    - ConnectWisePsa_ApiCompanyId: Company Id of the ConnectWise API
-    - ConnectWisePsa_ApiPublicKey: Public Key of the ConnectWise API
-    - ConnectWisePsa_ApiPrivateKey: Private Key of the ConnectWise API
-    - ConnectWisePsa_ApiClientId: Client Id of the ConnectWise API
-    - SecurityKey: Optional, use this as an additional step to secure the function
+                    
+    ConnectWisePsa_ApiBaseUrl - Base URL of the ConnectWise API
+    ConnectWisePsa_ApiCompanyId - Company Id of the ConnectWise API
+    ConnectWisePsa_ApiPublicKey - Public Key of the ConnectWise API
+    ConnectWisePsa_ApiPrivateKey - Private Key of the ConnectWise API
+    ConnectWisePsa_ApiClientId - Client Id of the ConnectWise API
+    SecurityKey - Optional, use this as an additional step to secure the function
+                    
+    The function requires the following modules to be installed:
+                   
+    None        
 
 .INPUTS
-    - TicketId: string value of numeric ticket number
-    - Message: text of note to add
-    - Internal: boolean indicating whether note should be internal only
-    - SecurityKey: optional security key to secure the function
+
+    TicketId - string value of numeric ticket number
+    Message - text of note to add
+    Internal - boolean indicating whether not should be internal only
+    SecurityKey - optional security key to secure the function
+
+    JSON Structure
+
+    {
+        "TicketId": "123456",
+        "Message": "This is a note",
+        "Internal": true,
+        "SecurityKey": "optional"
+    }
 
 .OUTPUTS
+    
     JSON structure of the response from the ConnectWise API
+
 #>
 
 using namespace System.Net
@@ -29,7 +50,6 @@ param($Request, $TriggerMetadata)
 function Add-ConnectWiseTicketNote {
     param (
         [string]$ConnectWiseUrl,
-        [string]$CompanyId,
         [string]$PublicKey,
         [string]$PrivateKey,
         [string]$ClientId,
@@ -47,26 +67,23 @@ function Add-ConnectWiseTicketNote {
         text = $Text
         detailDescriptionFlag = $true
         internalAnalysisFlag = $Internal
+        #resolutionFlag = $false
+        #customerUpdatedFlag = $false 
     } | ConvertTo-Json
     
     # Set up the authentication headers
-    $authString = "${CompanyId}+${PublicKey}:${PrivateKey}"
+    $AuthString  = "$($CientId)+$($PublicKey):$($PrivateKey)"
     $EncodedAuth  = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($AuthString));
     $headers = @{
         Authorization = "Basic $EncodedAuth"
-        clientId = $ClientId
+        ClientID = $ClientID
         'Cache-Control'= 'no-cache'
         ConnectionMethod = 'Key'
         Accept = "application/vnd.connectwise.com+json; version=v2020_2"
     }
 
-    # Log the request details for debugging
-    Write-Host "API URL: $apiUrl"
-    Write-Host "Headers: $($headers | ConvertTo-Json)"
-    Write-Host "Payload: $notePayload"
-
     # Make the API request to add the note
-    $result = Invoke-WebRequest -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
+    $result = Invoke-WebRequest -Uri $apiUrl -Method 'Post' -Headers $headers -Body $notePayload
     Write-Host $result
     return $result
 }
@@ -90,7 +107,7 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $Internal = $false
+    $internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
@@ -98,8 +115,7 @@ Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
 
 $result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
-    -CompanyId $env:ConnectWisePsa_ApiCompanyId `
-    -PublicKey $env:ConnectWisePsa_ApiPublicKey `
+    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
     -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
     -ClientId $env:ConnectWisePsa_ApiClientId `
     -TicketId $TicketId `
