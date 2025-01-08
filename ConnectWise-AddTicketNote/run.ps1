@@ -86,6 +86,13 @@ function Add-ConnectWiseTicketNote {
 Write-Host "Request Body: $($Request.Body | ConvertTo-Json)"
 Write-Host "Request Headers: $($Request.Headers | ConvertTo-Json)"
 
+# Log environment variables
+Write-Host "ConnectWisePsa_ApiBaseUrl: $env:ConnectWisePsa_ApiBaseUrl"
+Write-Host "ConnectWisePsa_ApiCompanyId: $env:ConnectWisePsa_ApiCompanyId"
+Write-Host "ConnectWisePsa_ApiPublicKey: $env:ConnectWisePsa_ApiPublicKey"
+Write-Host "ConnectWisePsa_ApiPrivateKey: $env:ConnectWisePsa_ApiPrivateKey"
+Write-Host "ConnectWisePsa_ApiClientId: $env:ConnectWisePsa_ApiClientId"
+
 $TicketId = $Request.Body.TicketId
 $Text = $Request.Body.Message
 $Internal = $Request.Body.Internal
