@@ -59,7 +59,7 @@ function Add-ConnectWiseTicketNote {
     )
 
     # Construct the API endpoint for adding a note
-    $apiUrl = "$ConnectWiseUrl/v2024_1/apis/3.0/service/tickets/$TicketId/notes"
+    $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
 
     # Create the note serviceObject
     $notePayload = @{
@@ -73,8 +73,9 @@ function Add-ConnectWiseTicketNote {
     
     # Set up the authentication headers
     $headers = @{
-        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${ClientId}+${PublicKey}:${PrivateKey}"))
+        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
+        "clientId" = $ClientId
     }
 
     # Make the API request to add the note
