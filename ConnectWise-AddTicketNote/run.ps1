@@ -29,6 +29,7 @@ param($Request, $TriggerMetadata)
 function Add-ConnectWiseTicketNote {
     param (
         [string]$ConnectWiseUrl,
+        [string]$CompanyId,
         [string]$PublicKey,
         [string]$PrivateKey,
         [string]$ClientId,
@@ -46,13 +47,11 @@ function Add-ConnectWiseTicketNote {
         text = $Text
         detailDescriptionFlag = $true
         internalAnalysisFlag = $Internal
-        #resolutionFlag = $false
-        #customerUpdatedFlag = $false 
     } | ConvertTo-Json
     
     # Set up the authentication headers
     $headers = @{
-        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
+        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${CompanyId}+${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
         "clientId" = $ClientId
     }
@@ -82,7 +81,7 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $internal = $false
+    $Internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
@@ -90,7 +89,8 @@ Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
 
 $result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
-    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
+    -CompanyId $env:ConnectWisePsa_ApiCompanyId `
+    -PublicKey $env:ConnectWisePsa_ApiPublicKey `
     -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
     -ClientId $env:ConnectWisePsa_ApiClientId `
     -TicketId $TicketId `
