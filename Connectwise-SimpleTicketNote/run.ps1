@@ -56,7 +56,7 @@ function Add-ConnectWiseTicketNote {
         [string]$TicketId,
         [string]$Text,
         [boolean]$Internal = $false
-    )
+        )
 
     # Construct the API endpoint for adding a note
     $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
@@ -87,6 +87,5 @@ function Add-ConnectWiseTicketNote {
     $result = Invoke-WebRequest -Uri $apiUrl -Method 'Post' -Headers $headers -Body $Body
     Write-Host $result
     return $result.content
-}
 
 })
