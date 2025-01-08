@@ -67,8 +67,6 @@ function Add-ConnectWiseTicketNote {
         text = $Text
         detailDescriptionFlag = $true
         internalAnalysisFlag = $Internal
-        #resolutionFlag = $false
-        #customerUpdatedFlag = $false 
     } | ConvertTo-Json
     
     # Set up the authentication headers
@@ -83,6 +81,10 @@ function Add-ConnectWiseTicketNote {
     Write-Host $result
     return $result
 }
+
+# Log the incoming request data
+Write-Host "Request Body: $($Request.Body | ConvertTo-Json)"
+Write-Host "Request Headers: $($Request.Headers | ConvertTo-Json)"
 
 $TicketId = $Request.Body.TicketId
 $Text = $Request.Body.Message
@@ -103,7 +105,7 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $internal = $false
+    $Internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
