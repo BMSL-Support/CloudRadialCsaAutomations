@@ -56,6 +56,11 @@ function Add-ConnectWiseTicketNote {
         "clientId" = $ClientId
     }
 
+    # Log the request details for debugging
+    Write-Host "API URL: $apiUrl"
+    Write-Host "Headers: $($headers | ConvertTo-Json)"
+    Write-Host "Payload: $notePayload"
+
     # Make the API request to add the note
     $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
     Write-Host $result
