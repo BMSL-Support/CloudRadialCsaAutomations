@@ -88,4 +88,4 @@ function Add-ConnectWiseTicketNote {
     Write-Host $result
     return $result.content
 
-})
+}
