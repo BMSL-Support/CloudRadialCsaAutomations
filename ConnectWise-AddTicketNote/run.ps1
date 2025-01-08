@@ -50,8 +50,9 @@ function Add-ConnectWiseTicketNote {
     } | ConvertTo-Json
     
     # Set up the authentication headers
+    $authString = "${CompanyId}+${PublicKey}:${PrivateKey}"
     $headers = @{
-        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${CompanyId}+${PublicKey}:${PrivateKey}"))
+        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($authString))
         "Content-Type" = "application/json"
         "clientId" = $ClientId
     }
