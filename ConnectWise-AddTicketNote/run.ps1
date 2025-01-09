@@ -34,7 +34,7 @@
         "TicketId": "123456",
         "Message": "This is a note",
         "Internal": true,
-        "SecurityKey": "optional"
+        "SecurityKey", "optional"
     }
 
 .OUTPUTS
@@ -72,18 +72,14 @@ function Add-ConnectWiseTicketNote {
     } | ConvertTo-Json
     
     # Set up the authentication headers
-    $AuthString  = "$($CientId)+$($PublicKey):$($PrivateKey)"
-    $EncodedAuth  = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($AuthString));
     $headers = @{
-        Authorization = "Basic $EncodedAuth"
-        ClientID = $ClientID
-        'Cache-Control'= 'no-cache'
-        ConnectionMethod = 'Key'
-        Accept = "application/vnd.connectwise.com+json; version=v2020_2"
+        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
+        "Content-Type" = "application/json"
+        "clientId" = $ClientId
     }
 
     # Make the API request to add the note
-    $result = Invoke-WebRequest -Uri $apiUrl -Method 'Post' -Headers $headers -Body $notePayload
+    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
     Write-Host $result
     return $result
 }
