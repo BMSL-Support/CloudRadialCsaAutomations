@@ -79,7 +79,7 @@ function Add-ConnectWiseTicketNote {
     }
 
     # Make the API request to add the note
-    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
+    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload -AllowInsecureRedirect
     Write-Host $result
     return $result
 }
