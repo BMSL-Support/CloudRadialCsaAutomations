@@ -34,7 +34,7 @@
         "TicketId": "123456",
         "Message": "This is a note",
         "Internal": true,
-        "SecurityKey", "optional"
+        "SecurityKey": "optional"
     }
 
 .OUTPUTS
