@@ -121,7 +121,14 @@ $headers = @{
     Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey:$env:ConnectWisePsa_ApiPrivateKey"))
 }
 
+# Ensure $apiUrl is set
+if (-Not $apiUrl) {
+    Write-Host "API URL is missing"
+    break;
+}
+
 # Debugging output
+Write-Host "API URL: $apiUrl"
 Write-Host "Payload: $notePayload"
 Write-Host "Headers: $headers"
 
