@@ -110,19 +110,29 @@ Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
 
-$result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
-    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
-    -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
-    -ClientId $env:ConnectWisePsa_ApiClientId `
-    -TicketId $TicketId `
-    -Text $Text `
-    -Internal $Internal
+# Prepare the payload and headers
+$notePayload = @{
+    text = $Text
+    internal = $Internal
+} | ConvertTo-Json
+
+$headers = @{
+    clientId = $env:ConnectWisePsa_ApiClientId
+    Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey:$env:ConnectWisePsa_ApiPrivateKey"))
+}
+
+# Debugging output
+Write-Host "Payload: $notePayload"
+Write-Host "Headers: $headers"
+
+# Make the API request
+$result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
 
 Write-Host $result.Message
 
 $body = @{
     response = ($result | ConvertTo-Json);
-} 
+}
 
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
