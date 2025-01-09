@@ -134,7 +134,13 @@ Write-Host "Payload: $notePayload"
 Write-Host "Headers: $headers"
 
 # Make the API request
-$result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
+$result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
+    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
+    -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
+    -ClientId $env:ConnectWisePsa_ApiClientId `
+    -TicketId $TicketId `
+    -Text $Text `
+    -Internal $Internal
 
 Write-Host $result.Message
 
