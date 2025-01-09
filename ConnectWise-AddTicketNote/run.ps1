@@ -60,7 +60,8 @@ function Add-ConnectWiseTicketNote {
 
     # Construct the API endpoint for adding a note
     $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
-
+    # Debugging output
+    Write-Host "API URL: $apiUrl"
     # Create the note serviceObject
     $notePayload = @{
         ticketId = $TicketId
