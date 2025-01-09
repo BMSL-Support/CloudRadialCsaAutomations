@@ -60,8 +60,7 @@ function Add-ConnectWiseTicketNote {
 
     # Construct the API endpoint for adding a note
     $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
-    # Debugging output
-    Write-Host "API URL: $apiUrl"
+
     # Create the note serviceObject
     $notePayload = @{
         ticketId = $TicketId
@@ -111,29 +110,6 @@ Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
 
-# Prepare the payload and headers
-$notePayload = @{
-    text = $Text
-    internal = $Internal
-} | ConvertTo-Json
-
-$headers = @{
-    clientId = $env:ConnectWisePsa_ApiClientId
-    Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey:$env:ConnectWisePsa_ApiPrivateKey"))
-}
-
-# Ensure $apiUrl is set
-if (-Not $apiUrl) {
-    Write-Host "API URL is missing"
-    break;
-}
-
-# Debugging output
-Write-Host "API URL: $apiUrl"
-Write-Host "Payload: $notePayload"
-Write-Host "Headers: $headers"
-
-# Make the API request
 $result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
     -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
     -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
@@ -146,7 +122,7 @@ Write-Host $result.Message
 
 $body = @{
     response = ($result | ConvertTo-Json);
-}
+} 
 
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
