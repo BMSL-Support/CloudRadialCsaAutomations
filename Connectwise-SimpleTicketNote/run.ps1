@@ -80,12 +80,48 @@ function Add-ConnectWiseTicketNote {
         ClientID = $ClientID
         'Cache-Control'= 'no-cache'
         ConnectionMethod = 'Key'
-        Accept = "application/vnd.connectwise.com+json; version=v2020_2"
+        Accept = "application/vnd.connectwise.com+json; version=v2024_1"
     }
 
     # Make the API request to add the note
     $result = Invoke-WebRequest -Uri $apiUrl -Method 'Post' -Headers $headers -Body $Body
     Write-Host $result
     return $result.content
+
+    $TicketId = $Request.Body.TicketId
+$Text = $Request.Body.Message
+$Internal = $Request.Body.Internal
+$SecurityKey = $env:SecurityKey
+
+if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
+    Write-Host "Invalid security key"
+    break;
+}
+
+if (-Not $TicketId) {
+    Write-Host "Missing ticket number"
+    break;
+}
+if (-Not $Text) {
+    Write-Host "Missing ticket text"
+    break;
+}
+if (-Not $Internal) {
+    $internal = $false
+}
+
+Write-Host "TicketId: $TicketId"
+Write-Host "Text: $Text"
+Write-Host "Internal: $Internal"
+
+$result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
+    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
+    -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
+    -ClientId $env:ConnectWisePsa_ApiClientId `
+    -TicketId $TicketId `
+    -Text $Text `
+    -Internal $Internal
+
+Write-Host $result
 
 }
