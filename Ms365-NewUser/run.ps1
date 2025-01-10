@@ -63,22 +63,8 @@ Write-Host "OfficePhone: $OfficePhone"
 Write-Host "MobilePhone: $MobilePhone"
 
 # Function to generate a random password
-function Generate-RandomPassword {
-    $letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    $lowerLetters = "abcdefghijklmnopqrstuvwxyz"
-    $digits = "0123456789"
-    $symbols = "!@#$%&*"
-
-    $password = ""
-    $password += $letters | Get-Random -Count 1
-    $password += $lowerLetters | Get-Random -Count 2
-    $password += $digits | Get-Random -Count 5
-    $password += $symbols | Get-Random -Count 1
-
-    return $password
-}
-
-$Password = Generate-RandomPassword
+Add-Type -AssemblyName System.Web
+$password = [System.Web.Security.Membership]::GeneratePassword(12, 1)
 Write-Host "Generated Password: $Password"
 
 try {
@@ -140,15 +126,15 @@ try {
             Write-Host "Assigning license to new user..."
             # Assign the license to the new user
             Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $availableLicenses.SkuId }
-            $message = "New user `$NewUserEmail` created successfully with license. Username: $NewUserEmail, Password: $Password"
+            $message = "New user $NewUserEmail created successfully with license. `rUsername: $NewUserEmail `rPassword: $Password"
             $resultCode = 200
         }
         else {
-            $message = "License type `$LicenseType` not available. New user `$NewUserEmail` created without license. Username: $NewUserEmail, Password: $Password"
+            $message = "The license type $LicenseType was not available. New user $NewUserEmail created without license. `rUsername: $NewUserEmail `rPassword: $Password"
         }
     }
     else {
-        $message = "No license type specified. New user `$NewUserEmail` created without license. Username: $NewUserEmail, Password: $Password"
+        $message = "No license type specified. New user $NewUserEmail created without license. `rUsername: $NewUserEmail `rPassword: $Password"
     }
 }
 catch {
