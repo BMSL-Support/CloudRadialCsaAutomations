@@ -120,7 +120,7 @@ try {
 
     Write-Host "Creating new user..."
     # Create the new user
-    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true }
+    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -AccountEnabled $true
 
     if ($newUser) {
         Write-Host "New user created: $($newUser.Id)"
