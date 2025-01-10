@@ -17,7 +17,6 @@
         "TenantId": "12345678-1234-1234-123456789012",
         "NewUserFirstName": "John",
         "NewUserLastName": "Doe",
-        "NewUserDisplayName": "John Doe",
         "NewUserEmail": "john.doe@example.com",
         "LicenseType": "ENTERPRISEPACK"
     }
@@ -42,7 +41,6 @@ $TicketId = $Request.Body.TicketId
 $TenantId = $Request.Body.TenantId
 $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
-$NewUserDisplayName = $Request.Body.NewUserDisplayName
 $NewUserEmail = $Request.Body.NewUserEmail
 $LicenseType = $Request.Body.LicenseType
 $SecurityKey = $env:SecurityKey
@@ -78,6 +76,9 @@ try {
     $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId
+
+    # Generate the display name
+    $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
 
     # Create the new user
     $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName
