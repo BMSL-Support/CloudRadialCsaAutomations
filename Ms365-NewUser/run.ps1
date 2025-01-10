@@ -62,6 +62,25 @@ Write-Host "JobTitle: $JobTitle"
 Write-Host "OfficePhone: $OfficePhone"
 Write-Host "MobilePhone: $MobilePhone"
 
+# Function to generate a random password
+function Generate-RandomPassword {
+    $letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    $lowerLetters = "abcdefghijklmnopqrstuvwxyz"
+    $digits = "0123456789"
+    $symbols = "!@#$%&*"
+
+    $password = ""
+    $password += $letters | Get-Random -Count 1
+    $password += $lowerLetters | Get-Random -Count 2
+    $password += $digits | Get-Random -Count 5
+    $password += $symbols | Get-Random -Count 1
+
+    return $password
+}
+
+$Password = Generate-RandomPassword
+Write-Host "Generated Password: $Password"
+
 try {
     if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
         throw "Invalid security key"
@@ -101,7 +120,7 @@ try {
 
     Write-Host "Creating new user..."
     # Create the new user
-    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone
+    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true }
 
     if ($newUser) {
         Write-Host "New user created: $($newUser.Id)"
@@ -118,15 +137,15 @@ try {
             Write-Host "Assigning license to new user..."
             # Assign the license to the new user
             Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $availableLicenses.SkuId }
-            $message = "New user `$NewUserEmail` created successfully with license."
+            $message = "New user `$NewUserEmail` created successfully with license. Username: $NewUserEmail, Password: $Password"
             $resultCode = 200
         }
         else {
-            $message = "License type `$LicenseType` not available. New user `$NewUserEmail` created without license."
+            $message = "License type `$LicenseType` not available. New user `$NewUserEmail` created without license. Username: $NewUserEmail, Password: $Password"
         }
     }
     else {
-        $message = "No license type specified. New user `$NewUserEmail` created without license."
+        $message = "No license type specified. New user `$NewUserEmail` created without license. Username: $NewUserEmail, Password: $Password"
     }
 }
 catch {
