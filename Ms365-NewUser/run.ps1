@@ -30,6 +30,7 @@
     ResultCode - 200 for success with license, 201 for success without license, 500 for failure
     ResultStatus - "Success" or "Failure"
 #>
+
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -49,6 +50,17 @@ $JobTitle = $Request.Body.JobTitle
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
 $SecurityKey = $env:SecurityKey
+
+Write-Host "Received inputs:"
+Write-Host "TicketId: $TicketId"
+Write-Host "TenantId: $TenantId"
+Write-Host "NewUserFirstName: $NewUserFirstName"
+Write-Host "NewUserLastName: $NewUserLastName"
+Write-Host "NewUserEmail: $NewUserEmail"
+Write-Host "LicenseType: $LicenseType"
+Write-Host "JobTitle: $JobTitle"
+Write-Host "OfficePhone: $OfficePhone"
+Write-Host "MobilePhone: $MobilePhone"
 
 try {
     if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
