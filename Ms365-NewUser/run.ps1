@@ -18,7 +18,10 @@
         "NewUserFirstName": "John",
         "NewUserLastName": "Doe",
         "NewUserEmail": "john.doe@example.com",
-        "LicenseType": "ENTERPRISEPACK"
+        "LicenseType": "ENTERPRISEPACK",
+        "JobTitle": "Software Engineer",
+        "OfficePhone": "+1234567890",
+        "MobilePhone": "+0987654321"
     }
 .OUTPUTS
     JSON response with the following fields:
@@ -43,6 +46,9 @@ $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
 $NewUserEmail = $Request.Body.NewUserEmail
 $LicenseType = $Request.Body.LicenseType
+$JobTitle = $Request.Body.JobTitle
+$OfficePhone = $Request.Body.OfficePhone
+$MobilePhone = $Request.Body.MobilePhone
 $SecurityKey = $env:SecurityKey
 
 try {
@@ -81,7 +87,7 @@ try {
     $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
 
     # Create the new user
-    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName
+    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone
 
     if ($LicenseType) {
         # Retrieve all available licenses
