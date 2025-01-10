@@ -63,8 +63,17 @@ Write-Host "OfficePhone: $OfficePhone"
 Write-Host "MobilePhone: $MobilePhone"
 
 # Function to generate a random password
-Add-Type -AssemblyName System.Web
-$password = [System.Web.Security.Membership]::GeneratePassword(12, 1)
+function New-RandomPassword {
+    param (
+        [int]$length = 12
+    )
+
+    $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()'
+    $password = -join ((1..$length) | ForEach-Object { $characters[(Get-Random -Minimum 0 -Maximum $characters.Length)] })
+    return $password
+}
+
+$password = New-RandomPassword -length 16
 Write-Host "Generated Password: $Password"
 
 try {
