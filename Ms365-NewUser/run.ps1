@@ -118,9 +118,12 @@ try {
     # Generate the display name
     $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
 
+    # Extract the mailNickname from the NewUserEmail
+    $mailNickname = $NewUserEmail.Split("@")[0]
+
     Write-Host "Creating new user..."
     # Create the new user
-    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -AccountEnabled
+    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -MailNickname $mailNickname -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -AccountEnabled
 
     if ($newUser) {
         Write-Host "New user created: $($newUser.Id)"
