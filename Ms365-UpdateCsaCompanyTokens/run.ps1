@@ -66,8 +66,6 @@ function Set-CloudRadialToken {
         "Content-Type" = "application/json"
     }
 
-write-host $base64AuthInfo
-
     $body = @{
         "companyId" = $CompanyId
         "token" = "$Token"
@@ -109,33 +107,32 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 
-# Get all groups in the tenant
-$groupList = Get-MgGroup -All
+# Output the list of M365 Licenses types
+$CompanyM365Licenses = Get-MsolAccountSku
 
-# Extract group names
-$groupNames = $groupList | Select-Object -ExpandProperty DisplayName 
-$groupNames = $groupNames | Sort-Object
+# Output the list of M365 Security groups
+$CompanyM365SecGroups = Get-MsolGroup -All | Where-Object {$_.GroupType -eq 'Security'}
 
-# Convert the array of group names to a comma-separated string
-$groupNamesString = $groupNames -join ","
+# Output the list of M365 Team names
+$CompanyM365Teams = Get-Team
 
-Set-CloudRadialToken -Token "CompanyGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
+# Output the list of Exchange Distribution Groups
+$CompanyM365EOLDG = Get-DistributionGroup
 
-Write-Host "Updated CompanyGroups for Company Id: $companyId."
+# Output the list of Exchange Shared Mailboxes
+$CompanyM365EOLSMB = Get-Mailbox -RecipientTypeDetails SharedMailbox
 
-# Get the list of domains
-$domains = Get-MgDomain
+# Output the list of Exchange Shared Calendars
+$CompanyM365EOLSC = Get-MailboxFolderStatistics -FolderScope Calendar
 
-$domainNames = $domains | Select-Object -ExpandProperty Id 
-$domainNames = $domainNames | Sort-Object
+Set-CloudRadialToken -Token "CompanyM365Licenses" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365Licenses | ConvertTo-Json)
+Set-CloudRadialToken -Token "CompanyM365SecGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365SecGroups | ConvertTo-Json)
+Set-CloudRadialToken -Token "CompanyM365Teams" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365Teams | ConvertTo-Json)
+Set-CloudRadialToken -Token "CompanyM365EOLDG" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365EOLDG | ConvertTo-Json)
+Set-CloudRadialToken -Token "CompanyM365EOLSMB" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365EOLSMB | ConvertTo-Json)
+Set-CloudRadialToken -Token "CompanyM365EOLSC" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365EOLSC | ConvertTo-Json)
 
-$domainNamesString = $domainNames -join ","
-
-Set-CloudRadialToken -Token "CompanyDomains" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $domainNamesString
-
-Write-Host "Updated CompanyDomains for Company Id: $companyId."
-
-$message = "Company tokens for $comanyId have been updated."
+$message = "Company tokens for $companyId have been updated."
 
 $body = @{
     Message      = $message
