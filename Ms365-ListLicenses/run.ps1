@@ -80,6 +80,20 @@ function Set-CompanyM365License {
     Write-Host "API response: $($response | ConvertTo-Json -Depth 4)"
 }
 
+function Get-PrettyLicenseNames {
+    param (
+        [Parameter (Mandatory=$true)] [String]$CsvUri
+    )
+
+    $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
+    $prettyNames = @{}
+    foreach ($row in $csvData) {
+        $prettyNames[$row.'Service Plan ID'] = $row.'Product Name'
+    }
+
+    return $prettyNames
+}
+
 $companyId = $Request.Body.CompanyId
 $tenantId = $Request.Body.TenantId
 $SecurityKey = $env:SecurityKey
@@ -108,8 +122,11 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 # Get all licenses in the tenant
 $licenses = Get-MgSubscribedSku
 
+# Get pretty names for licenses
+$prettyNames = Get-PrettyLicenseNames -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+
 # Extract license product names
-$licenseNames = $licenses | Select-Object -ExpandProperty SkuPartNumber 
+$licenseNames = $licenses | ForEach-Object { $prettyNames[$_.SkuPartNumber] }
 $licenseNames = $licenseNames | Sort-Object
 
 # Convert the array of license names to a comma-separated string
