@@ -108,22 +108,22 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 
 # Output the list of M365 Licenses types
-$CompanyM365Licenses = Get-MsolAccountSku
+$CompanyM365Licenses = Get-MgSubscribedSku
 
 # Output the list of M365 Security groups
-$CompanyM365SecGroups = Get-MsolGroup -All | Where-Object {$_.GroupType -eq 'Security'}
+$CompanyM365SecGroups = Get-MgGroup -Filter "securityEnabled eq true"
 
 # Output the list of M365 Team names
-$CompanyM365Teams = Get-Team
+$CompanyM365Teams = Get-MgTeam
 
 # Output the list of Exchange Distribution Groups
-$CompanyM365EOLDG = Get-DistributionGroup
+$CompanyM365EOLDG = Get-MgGroup -Filter "groupTypes/any(c:c eq 'Unified')"
 
 # Output the list of Exchange Shared Mailboxes
-$CompanyM365EOLSMB = Get-Mailbox -RecipientTypeDetails SharedMailbox
+$CompanyM365EOLSMB = Get-MgUser -Filter "mailboxSettings/delegateMeetingMessageDeliveryOptions eq 'SendToDelegateAndInformationToPrincipal'"
 
 # Output the list of Exchange Shared Calendars
-$CompanyM365EOLSC = Get-MailboxFolderStatistics -FolderScope Calendar
+$CompanyM365EOLSC = Get-MgUser -Filter "mailboxSettings/delegateMeetingMessageDeliveryOptions eq 'SendToDelegateAndInformationToPrincipal' and mailboxSettings/automaticRepliesSetting/status eq 'Scheduled'"
 
 Set-CloudRadialToken -Token "CompanyM365Licenses" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365Licenses | ConvertTo-Json)
 Set-CloudRadialToken -Token "CompanyM365SecGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList ($CompanyM365SecGroups | ConvertTo-Json)
