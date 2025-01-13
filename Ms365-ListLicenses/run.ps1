@@ -1,18 +1,19 @@
 <# 
-
 .SYNOPSIS
 
-    This function lists all available Microsoft 365 licenses.
+    This function is used to update the company tokens in CloudRadial from a Microsoft 365 tenant.
 
 .DESCRIPTION
-
-    This function lists all available Microsoft 365 licenses.
+    
+    This function is used to update the company tokens in CloudRadial from a Microsoft 365 tenant.
     
     The function requires the following environment variables to be set:
     
     Ms365_AuthAppId - Application Id of the Azure AD application
     Ms365_AuthSecretId - Secret Id of the Azure AD application
     Ms365_TenantId - Tenant Id of the Azure AD application
+    CloudRadialCsa_ApiPublicKey - Public Key of the CloudRadial API
+    CloudRadialCsa_ApiPrivateKey - Private Key of the CloudRadial API
     SecurityKey - Optional, use this as an additional step to secure the function
 
     The function requires the following modules to be installed:
@@ -48,13 +49,13 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-function Set-CompanyM365License {
+function Set-CloudRadialToken {
     param (
         [string]$Token,
         [string]$AppId,
         [string]$SecretId,
         [int]$CompanyId,
-        [string]$LicenseList
+        [string]$GroupList
     )
 
     # Construct the basic authentication header
@@ -67,7 +68,7 @@ function Set-CompanyM365License {
     $body = @{
         "companyId" = $CompanyId
         "token" = "$Token"
-        "value" = "$LicenseList"
+        "value" = "$GroupList"
     }
 
     $bodyJson = $body | ConvertTo-Json
@@ -78,20 +79,6 @@ function Set-CompanyM365License {
     $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Body $bodyJson -Method Post
 
     Write-Host "API response: $($response | ConvertTo-Json -Depth 4)"
-}
-
-function Get-PrettyLicenseNames {
-    param (
-        [Parameter (Mandatory=$true)] [String]$CsvUri
-    )
-
-    $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
-    $prettyNames = @{}
-    foreach ($row in $csvData) {
-        $prettyNames[$row.'GUID'] = $row.'Product_Display_Name'
-    }
-
-    return $prettyNames
 }
 
 $companyId = $Request.Body.CompanyId
@@ -119,31 +106,33 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 
-# Get all licenses in the tenant
+# Get all active Microsoft Teams in the tenant
+$teamsList = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All
+
+# Extract team names
+$teamNames = $teamsList | Select-Object -ExpandProperty DisplayName 
+$teamNames = $teamNames | Sort-Object
+
+# Convert the array of team names to a comma-separated string
+$teamNamesString = $teamNames -join ","
+
+Set-CloudRadialToken -Token "CompanyTeams" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $teamNamesString
+
+Write-Host "Updated CompanyTeams for Company Id: $companyId."
+
+# Get the list of Microsoft 365 licenses
 $licenses = Get-MgSubscribedSku
 
-# Get pretty names for licenses
-$prettyNames = Get-PrettyLicenseNames -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
-
-# Extract license product names
-$licenseNames = $licenses | ForEach-Object { 
-    if ($prettyNames.ContainsKey($_.SkuId)) {
-        $prettyNames[$_.SkuId]
-    } else {
-        Write-Host "Warning: No pretty name found for SKU ID $($_.SkuId)"
-        $_.SkuPartNumber
-    }
-}
+$licenseNames = $licenses | Select-Object -ExpandProperty SkuPartNumber 
 $licenseNames = $licenseNames | Sort-Object
 
-# Convert the array of license names to a comma-separated string
 $licenseNamesString = $licenseNames -join ","
 
-Set-CompanyM365License -Token "CompanyM365License" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -LicenseList $licenseNamesString
+Set-CloudRadialToken -Token "CompanyM365Licenses" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $licenseNamesString
 
-Write-Host "Updated CompanyM365License for Company Id: $companyId."
+Write-Host "Updated CompanyM365Licenses for Company Id: $companyId."
 
-$message = "Company licenses for $companyId have been updated."
+$message = "Company tokens for $companyId have been updated."
 
 $body = @{
     Message      = $message
