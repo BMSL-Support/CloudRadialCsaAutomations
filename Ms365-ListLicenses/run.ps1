@@ -126,7 +126,14 @@ $licenses = Get-MgSubscribedSku
 $prettyNames = Get-PrettyLicenseNames -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
 # Extract license product names
-$licenseNames = $licenses | ForEach-Object { $prettyNames[$_.SkuPartNumber] }
+$licenseNames = $licenses | ForEach-Object { 
+    if ($prettyNames.ContainsKey($_.SkuPartNumber)) {
+        $prettyNames[$_.SkuPartNumber]
+    } else {
+        Write-Host "Warning: No pretty name found for SKU part number $($_.SkuPartNumber)"
+        $_.SkuPartNumber
+    }
+}
 $licenseNames = $licenseNames | Sort-Object
 
 # Convert the array of license names to a comma-separated string
