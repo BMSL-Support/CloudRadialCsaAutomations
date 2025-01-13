@@ -108,18 +108,14 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 # Get all licenses in the tenant
 $licenses = Get-MgSubscribedSku
 
-# Extract license details
-$licenseDetails = $licenses | ForEach-Object {
-    [PSCustomObject]@{
-        SkuId         = $_.SkuId
-        SkuPartNumber = $_.SkuPartNumber
-    }
-}
+# Extract license product names
+$licenseNames = $licenses | Select-Object -ExpandProperty SkuPartNumber 
+$licenseNames = $licenseNames | Sort-Object
 
-# Convert the array of license details to a comma-separated string
-$licenseDetailsString = $licenseDetails -join ","
+# Convert the array of license names to a comma-separated string
+$licenseNamesString = $licenseNames -join ","
 
-Set-CompanyM365License -Token "CompanyM365License" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -LicenseList $licenseDetailsString
+Set-CompanyM365License -Token "CompanyM365License" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -LicenseList $licenseNamesString
 
 Write-Host "Updated CompanyM365License for Company Id: $companyId."
 
