@@ -116,7 +116,7 @@ $licenses | ForEach-Object { Write-Host "$($_.SkuPartNumber) - $($_.SkuId)" }
 $csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
 # Download the CSV content
-$csvContent = Invoke-WebRequest -Uri $csvUrl -UseBasicPipelines
+$csvContent = Invoke-WebRequest -Uri $csvUrl
 
 # Convert the CSV content into an object
 $servicePlans = $csvContent.Content | ConvertFrom-Csv
