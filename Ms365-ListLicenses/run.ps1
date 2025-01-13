@@ -43,7 +43,6 @@
     ResultStatus - "Success" or "Failure"
 
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -123,23 +122,24 @@ $servicePlans = $csvContent.Content | ConvertFrom-Csv
 
 # Debugging: Output the CSV data to check what is loaded
 Write-Host "Service Plans CSV Data:"
-$servicePlans | ForEach-Object { Write-Host "$($_.ServicePlanId) - $($_.Service_Plans_Included_Friendly_Name)" }
+$servicePlans | ForEach-Object { Write-Host "$($_.ServicePlanId) - $($_.Product_Display_Name)" }
 
 # Initialize an array to store the license names
 $licenseNames = @()
 
 foreach ($license in $licenses) {
-    $skuPartNumber = $license.SkuPartNumber
-    # Debugging: Output the SKU part number for each license
-    Write-Host "Processing License: $skuPartNumber"
+    $skuId = $license.SkuId.ToString()  # Convert to string for consistent comparison
+    # Debugging: Output the SKU ID for each license
+    Write-Host "Processing License SKUId: $skuId"
 
-    $servicePlan = $servicePlans | Where-Object { $_.ServicePlanId -eq $skuPartNumber }
-    
+    # Look for matching ServicePlanId in CSV (ensure both are strings for correct comparison)
+    $servicePlan = $servicePlans | Where-Object { $_.ServicePlanId -eq $skuId }
+
     if ($servicePlan) {
-        Write-Host "Found Matching Service Plan: $($servicePlan.Service_Plans_Included_Friendly_Name)"
-        $licenseNames += $servicePlan.Service_Plans_Included_Friendly_Name
+        Write-Host "Found Matching Service Plan: $($servicePlan.Product_Display_Name)"
+        $licenseNames += $servicePlan.Product_Display_Name
     } else {
-        Write-Host "No matching service plan found for SKU: $skuPartNumber"
+        Write-Host "No matching service plan found for SKUId: $skuId"
     }
 }
 
