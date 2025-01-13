@@ -108,22 +108,43 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 # Fetch licenses for the tenant
 $licenses = Get-MgSubscribedSku
 
+# Debugging: Output the fetched licenses to see what we have
+Write-Host "Fetched Licenses:"
+$licenses | ForEach-Object { Write-Host "$($_.SkuPartNumber) - $($_.SkuId)" }
+
 # Path to the CSV containing Service Plan identifiers and friendly names
 $csvPath = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
 # Download and parse the CSV file
 $servicePlans = Import-Csv -Url $csvPath
 
+# Debugging: Output the CSV data to check what is loaded
+Write-Host "Service Plans CSV Data:"
+$servicePlans | ForEach-Object { Write-Host "$($_.ServicePlanId) - $($_.Service_Plans_Included_Friendly_Name)" }
+
 # Initialize an array to store the license names
 $licenseNames = @()
 
 foreach ($license in $licenses) {
     $skuPartNumber = $license.SkuPartNumber
+    # Debugging: Output the SKU part number for each license
+    Write-Host "Processing License: $skuPartNumber"
+
     $servicePlan = $servicePlans | Where-Object { $_.ServicePlanId -eq $skuPartNumber }
     
     if ($servicePlan) {
+        Write-Host "Found Matching Service Plan: $($servicePlan.Service_Plans_Included_Friendly_Name)"
         $licenseNames += $servicePlan.Service_Plans_Included_Friendly_Name
+    } else {
+        Write-Host "No matching service plan found for SKU: $skuPartNumber"
     }
+}
+
+# Check if we found any license names
+if ($licenseNames.Count -eq 0) {
+    Write-Host "No licenses were found or matched."
+} else {
+    Write-Host "Found the following license names: $($licenseNames -join ', ')"
 }
 
 # Join all license names into a comma-separated string
