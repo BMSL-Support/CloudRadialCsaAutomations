@@ -43,11 +43,12 @@
     ResultStatus - "Success" or "Failure"
 
 #>
+
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-function Set-CloudRadialToken {
+function Set-CompanyM365License {
     param (
         [string]$Token,
         [string]$AppId,
@@ -79,6 +80,20 @@ function Set-CloudRadialToken {
     Write-Host "API response: $($response | ConvertTo-Json -Depth 4)"
 }
 
+function Get-PrettyLicenseNames {
+    param (
+        [Parameter (Mandatory=$true)] [String]$CsvUri
+    )
+
+    $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
+    $prettyNames = @{}
+    foreach ($row in $csvData) {
+        $prettyNames[$row.'GUID'] = $row.'Product_Display_Name'
+    }
+
+    return $prettyNames
+}
+
 $companyId = $Request.Body.CompanyId
 $tenantId = $Request.Body.TenantId
 $SecurityKey = $env:SecurityKey
@@ -104,61 +119,31 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
 
-# Fetch licenses for the tenant
+# Get all licenses in the tenant
 $licenses = Get-MgSubscribedSku
 
-# Debugging: Output the fetched licenses to see what we have
-Write-Host "Fetched Licenses:"
-$licenses | ForEach-Object { Write-Host "$($_.SkuPartNumber) - $($_.SkuId)" }
+# Get pretty names for licenses
+$prettyNames = Get-PrettyLicenseNames -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
-# Path to the CSV containing Service Plan identifiers and friendly names
-$csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
-
-# Download the CSV content
-$csvContent = Invoke-WebRequest -Uri $csvUrl
-
-# Convert the CSV content into an object
-$servicePlans = $csvContent.Content | ConvertFrom-Csv
-
-# Debugging: Output the CSV data to check what is loaded
-Write-Host "Service Plans CSV Data:"
-$servicePlans | ForEach-Object { Write-Host "$($_.ServicePlanId) - $($_.Product_Display_Name)" }
-
-# Initialize an array to store the license names
-$licenseNames = @()
-
-foreach ($license in $licenses) {
-    $skuId = $license.SkuId.ToString()  # Convert to string for consistent comparison
-    # Debugging: Output the SKU ID for each license
-    Write-Host "Processing License SKUId: $skuId"
-
-    # Look for matching ServicePlanId in CSV (ensure both are strings for correct comparison)
-    $servicePlan = $servicePlans | Where-Object { $_.ServicePlanId -eq $skuId }
-
-    if ($servicePlan) {
-        Write-Host "Found Matching Service Plan: $($servicePlan.Product_Display_Name)"
-        $licenseNames += $servicePlan.Product_Display_Name
+# Extract license product names
+$licenseNames = $licenses | ForEach-Object { 
+    if ($prettyNames.ContainsKey($_.SkuId)) {
+        $prettyNames[$_.SkuId]
     } else {
-        Write-Host "No matching service plan found for SKUId: $skuId"
+        Write-Host "Warning: No pretty name found for SKU ID $($_.SkuId)"
+        $_.SkuPartNumber
     }
 }
+$licenseNames = $licenseNames | Sort-Object
 
-# Check if we found any license names
-if ($licenseNames.Count -eq 0) {
-    Write-Host "No licenses were found or matched."
-} else {
-    Write-Host "Found the following license names: $($licenseNames -join ', ')"
-}
-
-# Join all license names into a comma-separated string
+# Convert the array of license names to a comma-separated string
 $licenseNamesString = $licenseNames -join ","
 
-# Send the list of licenses to CloudRadial
-Set-CloudRadialToken -Token "CompanyM365Licenses" -AppId $env:CloudRadialCsa_ApiPublicKey -SecretId $env:CloudRadialCsa_ApiPrivateKey -CompanyId $companyId -LicenseList $licenseNamesString
+Set-CompanyM365License -Token "CompanyM365License" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -LicenseList $licenseNamesString
 
-Write-Host "Updated CompanyM365Licenses for Company Id: $companyId."
+Write-Host "Updated CompanyM365License for Company Id: $companyId."
 
-$message = "Company tokens for $companyId have been updated with the M365 license types."
+$message = "Company licenses for $companyId have been updated."
 
 $body = @{
     Message      = $message
@@ -167,7 +152,7 @@ $body = @{
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
 } 
 
-# Associate values to output bindings by calling 'Push-OutputBinding' 
+# Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode  = [HttpStatusCode]::OK
         Body        = $body
