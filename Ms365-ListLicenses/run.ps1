@@ -48,113 +48,155 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-function Set-CompanyM365Licenses {
-    param (
-        [string]$Token,
-        [string]$AppId,
-        [string]$SecretId,
-        [int]$CompanyId,
-        [string]$LicenseList
-    )
+Write-Host "Create New User function triggered."
 
-    # Construct the basic authentication header
-    $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${AppId}:${SecretId}"))
-    $headers = @{
-        "Authorization" = "Basic $base64AuthInfo"
-        "Content-Type" = "application/json"
-    }
-
-    $body = @{
-        "companyId" = $CompanyId
-        "token" = "$Token"
-        "value" = "$LicenseList"
-    }
-
-    $bodyJson = $body | ConvertTo-Json
-
-    # Replace the following URL with the actual REST API endpoint
-    $apiUrl = "https://api.us.cloudradial.com/api/beta/token"
-
-    $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Body $bodyJson -Method Post
-
-    Write-Host "API response: $($response | ConvertTo-Json -Depth 4)"
-}
-
-function Get-PrettyLicenseNames {
-    param (
-        [Parameter (Mandatory=$true)] [String]$CsvUri
-    )
-
-    $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
-    $prettyNames = @{}
-    foreach ($row in $csvData) {
-        $prettyNames[$row.'GUID'] = $row.'Product_Display_Name'
-    }
-
-    return $prettyNames
-}
-
-$companyId = $Request.Body.CompanyId
-$tenantId = $Request.Body.TenantId
-$SecurityKey = $env:SecurityKey
-
-if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
-    Write-Host "Invalid security key"
-    break;
-}
-
-if (-Not $companyId) {
-    $companyId = 1
-}
-
-if (-Not $tenantId) {
-    $tenantId = $env:Ms365_TenantId
-}
-
-$resultCode = 200
+$resultCode = 201
 $message = ""
 
-$secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-$credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+# Log the raw request body for debugging
+Write-Host "Raw Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
 
-Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
+$TicketId = $Request.Body.TicketId
+$TenantId = $Request.Body.TenantId
+$NewUserFirstName = $Request.Body.NewUserFirstName
+$NewUserLastName = $Request.Body.NewUserLastName
+$NewUserEmail = $Request.Body.NewUserEmail
+$LicenseTypes = $Request.Body.LicenseType -split ","
+$JobTitle = $Request.Body.JobTitle
+$OfficePhone = $Request.Body.OfficePhone
+$MobilePhone = $Request.Body.MobilePhone
+$SecurityKey = $env:SecurityKey
 
-# Get all licenses in the tenant
-$licenses = Get-MgSubscribedSku
+Write-Host "Received inputs:"
+Write-Host "TicketId: $TicketId"
+Write-Host "TenantId: $TenantId"
+Write-Host "NewUserFirstName: $NewUserFirstName"
+Write-Host "NewUserLastName: $NewUserLastName"
+Write-Host "NewUserEmail: $NewUserEmail"
+Write-Host "LicenseTypes: $LicenseTypes"
+Write-Host "JobTitle: $JobTitle"
+Write-Host "OfficePhone: $OfficePhone"
+Write-Host "MobilePhone: $MobilePhone"
 
-# Get pretty names for licenses
-$prettyNames = Get-PrettyLicenseNames -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+# Function to generate a random password
+function New-RandomPassword {
+    param (
+        [int]$length = 12
+    )
 
-# Extract license product names
-$licenseNames = $licenses | ForEach-Object { 
-    if ($prettyNames.ContainsKey($_.SkuId)) {
-        $prettyNames[$_.SkuId]
+    $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#%&*()'
+    $password = -join ((1..$length) | ForEach-Object { $characters[(Get-Random -Minimum 0 -Maximum $characters.Length)] })
+    return $password
+}
+
+$password = New-RandomPassword -length 16
+Write-Host "Generated Password: $Password"
+
+# Download the CSV once and store it in a variable
+$csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+$csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | ConvertFrom-Csv
+
+# Function to convert pretty license names to SKU IDs
+function Get-SkuId {
+    param (
+        [string]$licenseName,
+        [array]$csvData
+    )
+
+    $skuId = ($csvData | Where-Object { $_.'Product_Display_Name' -eq $licenseName }).'GUID'
+    Write-Host "License Name: $licenseName, SKU ID: $skuId"
+    return $skuId
+}
+
+try {
+    if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
+        throw "Invalid security key"
+    }
+
+    if (-Not $NewUserEmail) {
+        throw "NewUserEmail cannot be blank."
+    }
+    else {
+        $NewUserEmail = $NewUserEmail.Trim()
+    }
+
+    if (-Not $TenantId) {
+        $TenantId = $env:Ms365_TenantId
+    }
+    else {
+        $TenantId = $TenantId.Trim()
+    }
+
+    if (-Not $TicketId) {
+        $TicketId = ""
+    }
+
+    Write-Host "New User Email: $NewUserEmail"
+    Write-Host "Tenant Id: $TenantId"
+    Write-Host "Ticket Id: $TicketId"
+
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
+    Write-Host "Connecting to Microsoft Graph..."
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId
+    Write-Host "Connected to Microsoft Graph."
+
+    # Generate the display name
+    $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
+
+    # Extract the mailNickname from the NewUserEmail
+    $mailNickname = $NewUserEmail.Split("@")[0]
+
+    Write-Host "Creating new user..."
+    # Create the new user
+    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -MailNickname $mailNickname -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -AccountEnabled
+
+    if ($newUser) {
+        Write-Host "New user created: $($newUser.Id)"
     } else {
-        Write-Host "Warning: No pretty name found for SKU ID $($_.SkuId)"
-        $_.SkuPartNumber
+        throw "Failed to create new user."
+    }
+
+    $licensesAssigned = @()
+    foreach ($licenseType in $LicenseTypes) {
+        $licenseType = $licenseType.Trim()
+        $skuId = Get-SkuId -licenseName $licenseType -csvData $csvData
+
+        if ($skuId) {
+            Write-Host "Assigning license $licenseType to new user..."
+            Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $skuId }
+            $licensesAssigned += $licenseType
+        }
+        else {
+            Write-Host "The license type $licenseType was not available."
+        }
+    }
+
+    if ($licensesAssigned.Count -gt 0) {
+        $message = "New user $NewUserEmail created successfully with licenses: $($licensesAssigned -join ', '). `rUsername: $NewUserEmail `rPassword: $Password"
+        $resultCode = 200
+    }
+    else {
+        $message = "No valid licenses were assigned. New user $NewUserEmail created without license. `rUsername: $NewUserEmail `rPassword: $Password"
     }
 }
-$licenseNames = $licenseNames | Sort-Object
-
-# Convert the array of license names to a comma-separated string
-$licenseNamesString = $licenseNames -join ","
-
-Set-CompanyM365Licenses -Token "CompanyM365Licenses" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -LicenseList $licenseNamesString
-
-Write-Host "Updated CompanyM365Licenses for Company Id: $companyId."
-
-$message = "Company licenses for $companyId have been updated."
+catch {
+    $message = "Error: $_"
+    $resultCode = 500
+    Write-Host "Error: $_"
+}
 
 $body = @{
     Message      = $message
     TicketId     = $TicketId
     ResultCode   = $resultCode
-    ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+    ResultStatus = if ($resultCode -eq 200 -or $resultCode -eq 201) { "Success" } else { "Failure" }
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode  = [HttpStatusCode]::OK
+        StatusCode  = if ($resultCode -eq 200) { [HttpStatusCode]::OK } else { [HttpStatusCode]::Created }
         Body        = $body
         ContentType = "application/json"
     })
