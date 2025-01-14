@@ -30,7 +30,7 @@
     ResultCode - 200 for success with license, 201 for success without license, 500 for failure
     ResultStatus - "Success" or "Failure"
 #>
-using namespace System.Net
+
 param($Request, $TriggerMetadata)
 
 Write-Host "Create New User function triggered."
@@ -88,7 +88,13 @@ function Get-SkuId {
         [array]$csvData
     )
 
+    # Log available product names for inspection
+    Write-Host "Available Licenses in CSV:"
+    $csvData | ForEach-Object { Write-Host $_.'Product_Display_Name' }
+
     $skuId = ($csvData | Where-Object { $_.'Product_Display_Name' -eq $licenseName }).'GUID'
+
+    # Log the SKU ID result
     Write-Host "License Name: $licenseName, SKU ID: $skuId"
     return $skuId
 }
