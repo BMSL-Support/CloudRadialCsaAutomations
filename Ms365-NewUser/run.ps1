@@ -30,7 +30,6 @@
     ResultCode - 200 for success with license, 201 for success without license, 500 for failure
     ResultStatus - "Success" or "Failure"
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -39,6 +38,9 @@ Write-Host "Create New User function triggered."
 
 $resultCode = 201
 $message = ""
+
+# Log the raw request body for debugging
+Write-Host "Raw Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
 
 $TicketId = $Request.Body.TicketId
 $TenantId = $Request.Body.TenantId
@@ -86,6 +88,7 @@ function Get-SkuId {
     $csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | ConvertFrom-Csv
 
     $skuId = ($csvData | Where-Object { $_.'Product name' -eq $licenseName }).'Service plan identifier'
+    Write-Host "License Name: $licenseName, SKU ID: $skuId"
     return $skuId
 }
 
