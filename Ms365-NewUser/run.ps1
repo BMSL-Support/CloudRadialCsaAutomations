@@ -78,16 +78,18 @@ function New-RandomPassword {
 $password = New-RandomPassword -length 16
 Write-Host "Generated Password: $Password"
 
+# Download the CSV once and store it in a variable
+$csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+$csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | ConvertFrom-Csv
+
 # Function to convert pretty license names to SKU IDs
 function Get-SkuId {
     param (
-        [string]$licenseName
+        [string]$licenseName,
+        [array]$csvData
     )
 
-    $csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
-    $csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | ConvertFrom-Csv
-
-    $skuId = ($csvData | Where-Object { $_.'Product name' -eq $licenseName }).'Service plan identifier'
+    $skuId = ($csvData | Where-Object { $_.'Product_Display_Name' -eq $licenseName }).'GUID'
     Write-Host "License Name: $licenseName, SKU ID: $skuId"
     return $skuId
 }
@@ -145,7 +147,7 @@ try {
     $licensesAssigned = @()
     foreach ($licenseType in $LicenseTypes) {
         $licenseType = $licenseType.Trim()
-        $skuId = Get-SkuId -licenseName $licenseType
+        $skuId = Get-SkuId -licenseName $licenseType -csvData $csvData
 
         if ($skuId) {
             Write-Host "Assigning license $licenseType to new user..."
