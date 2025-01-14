@@ -1,36 +1,3 @@
-<# 
-.SYNOPSIS
-    This function creates a new user in the tenant.
-.DESCRIPTION
-    This function creates a new user in the tenant and assigns a license if available.
-    The function requires the following environment variables to be set:
-    Ms365_AuthAppId - Application Id of the service principal
-    Ms365_AuthSecretId - Secret Id of the service principal
-    Ms365_TenantId - Tenant Id of the Microsoft 365 tenant
-    SecurityKey - Optional, use this as an additional step to secure the function
-    The function requires the following modules to be installed:
-    Microsoft.Graph
-.INPUTS
-    JSON Structure
-    {
-        "TicketId": "123456",
-        "TenantId": "12345678-1234-1234-123456789012",
-        "NewUserFirstName": "John",
-        "NewUserLastName": "Doe",
-        "NewUserEmail": "john.doe@example.com",
-        "LicenseType": "ENTERPRISEPACK",
-        "JobTitle": "Software Engineer",
-        "OfficePhone": "+1234567890",
-        "MobilePhone": "+0987654321"
-    }
-.OUTPUTS
-    JSON response with the following fields:
-    Message - Descriptive string of result
-    TicketId - TicketId passed in Parameters
-    ResultCode - 200 for success with license, 201 for success without license, 500 for failure
-    ResultStatus - "Success" or "Failure"
-#>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -45,7 +12,7 @@ $TenantId = $Request.Body.TenantId
 $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
 $NewUserEmail = $Request.Body.NewUserEmail
-$LicenseType = $Request.Body.LicenseType
+$LicenseTypes = $Request.Body.LicenseType -split ","
 $JobTitle = $Request.Body.JobTitle
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
@@ -57,7 +24,7 @@ Write-Host "TenantId: $TenantId"
 Write-Host "NewUserFirstName: $NewUserFirstName"
 Write-Host "NewUserLastName: $NewUserLastName"
 Write-Host "NewUserEmail: $NewUserEmail"
-Write-Host "LicenseType: $LicenseType"
+Write-Host "LicenseTypes: $LicenseTypes"
 Write-Host "JobTitle: $JobTitle"
 Write-Host "OfficePhone: $OfficePhone"
 Write-Host "MobilePhone: $MobilePhone"
@@ -75,6 +42,19 @@ function New-RandomPassword {
 
 $password = New-RandomPassword -length 16
 Write-Host "Generated Password: $Password"
+
+# Function to convert pretty license names to SKU IDs
+function Get-SkuId {
+    param (
+        [string]$licenseName
+    )
+
+    $csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+    $csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | ConvertFrom-Csv
+
+    $skuId = ($csvData | Where-Object { $_.'Product name' -eq $licenseName }).'Service plan identifier'
+    return $skuId
+}
 
 try {
     if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
@@ -126,24 +106,27 @@ try {
         throw "Failed to create new user."
     }
 
-    if ($LicenseType) {
-        Write-Host "Retrieving available licenses..."
-        # Retrieve all available licenses
-        $availableLicenses = Get-MgSubscribedSku | Where-Object { $_.SkuPartNumber -eq $LicenseType }
+    $licensesAssigned = @()
+    foreach ($licenseType in $LicenseTypes) {
+        $licenseType = $licenseType.Trim()
+        $skuId = Get-SkuId -licenseName $licenseType
 
-        if ($availableLicenses) {
-            Write-Host "Assigning license to new user..."
-            # Assign the license to the new user
-            Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $availableLicenses.SkuId }
-            $message = "New user $NewUserEmail created successfully with license. `rUsername: $NewUserEmail `rPassword: $Password"
-            $resultCode = 200
+        if ($skuId) {
+            Write-Host "Assigning license $licenseType to new user..."
+            Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $skuId }
+            $licensesAssigned += $licenseType
         }
         else {
-            $message = "The license type $LicenseType was not available. New user $NewUserEmail created without license. `rUsername: $NewUserEmail `rPassword: $Password"
+            Write-Host "The license type $licenseType was not available."
         }
     }
+
+    if ($licensesAssigned.Count -gt 0) {
+        $message = "New user $NewUserEmail created successfully with licenses: $($licensesAssigned -join ', '). `rUsername: $NewUserEmail `rPassword: $Password"
+        $resultCode = 200
+    }
     else {
-        $message = "No license type specified. New user $NewUserEmail created without license. `rUsername: $NewUserEmail `rPassword: $Password"
+        $message = "No valid licenses were assigned. New user $NewUserEmail created without license. `rUsername: $NewUserEmail `rPassword: $Password"
     }
 }
 catch {
