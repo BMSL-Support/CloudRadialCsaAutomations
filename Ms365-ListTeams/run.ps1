@@ -116,9 +116,9 @@ $teamNames = $teamNames | Sort-Object
 # Convert the array of team names to a comma-separated string
 $teamNamesString = $teamNames -join ","
 
-Set-CloudRadialToken -Token "CompanyTeams" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $teamNamesString
+Set-CloudRadialToken -Token "CompanyM365Teams" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $teamNamesString
 
-Write-Host "Updated CompanyTeams for Company Id: $companyId."
+Write-Host "Updated CompanyM365Teams for Company Id: $companyId."
 
 $message = "Company tokens for $companyId have been updated."
 
