@@ -31,7 +31,6 @@
     ResultStatus - "Success" or "Failure"
 #>
 using namespace System.Net
-
 param($Request, $TriggerMetadata)
 
 Write-Host "Create New User function triggered."
@@ -47,7 +46,7 @@ $TenantId = $Request.Body.TenantId
 $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
 $NewUserEmail = $Request.Body.NewUserEmail
-$LicenseTypes = $Request.Body.LicenseType -split ","
+$LicenseTypes = $Request.Body.LicenseType
 $JobTitle = $Request.Body.JobTitle
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
@@ -180,7 +179,7 @@ $body = @{
     ResultStatus = if ($resultCode -eq 200 -or $resultCode -eq 201) { "Success" } else { "Failure" }
 } 
 
-# Associate values to output bindings by calling 'Push-OutputBinding'.
+# Associate values to output bindings by calling 'Push-OutputBinding' to return the response
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode  = if ($resultCode -eq 200) { [HttpStatusCode]::OK } else { [HttpStatusCode]::Created }
         Body        = $body
