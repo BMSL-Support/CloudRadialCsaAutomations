@@ -31,6 +31,8 @@
     ResultStatus - "Success" or "Failure"
 #>
 
+using namespace System.Net
+
 param($Request, $TriggerMetadata)
 
 Write-Host "Create New User function triggered."
@@ -46,7 +48,7 @@ $TenantId = $Request.Body.TenantId
 $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
 $NewUserEmail = $Request.Body.NewUserEmail
-$LicenseTypes = $Request.Body.LicenseType
+$LicenseTypes = $Request.Body.LicenseType -split ","
 $JobTitle = $Request.Body.JobTitle
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
@@ -77,27 +79,27 @@ function New-RandomPassword {
 $password = New-RandomPassword -length 16
 Write-Host "Generated Password: $Password"
 
-# Download the CSV once and store it in a variable
-$csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
-$csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | ConvertFrom-Csv
-
-# Function to convert pretty license names to SKU IDs
-function Get-SkuId {
+# Function to get the GUID for the given license name from the CSV
+function Get-GuidForLicenseName {
     param (
-        [string]$licenseName,
-        [array]$csvData
+        [Parameter (Mandatory=$true)] [String]$CsvUri,
+        [Parameter (Mandatory=$true)] [String]$LicenseName
     )
 
-    # Log available product names for inspection
-    Write-Host "Available Licenses in CSV:"
-    $csvData | ForEach-Object { Write-Host $_.'Product_Display_Name' }
+    $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
+    $guid = ($csvData | Where-Object { $_.'Product_Display_Name' -eq $LicenseName }).'GUID'
 
-    $skuId = ($csvData | Where-Object { $_.'Product_Display_Name' -eq $licenseName }).'GUID'
+    if ($guid) {
+        Write-Host "Found GUID for License $LicenseName: $guid"
+    } else {
+        Write-Host "License name '$LicenseName' not found in the CSV."
+    }
 
-    # Log the SKU ID result
-    Write-Host "License Name: $licenseName, SKU ID: $skuId"
-    return $skuId
+    return $guid
 }
+
+# Download the CSV once and store it in a variable
+$csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
 try {
     if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
@@ -152,7 +154,9 @@ try {
     $licensesAssigned = @()
     foreach ($licenseType in $LicenseTypes) {
         $licenseType = $licenseType.Trim()
-        $skuId = Get-SkuId -licenseName $licenseType -csvData $csvData
+
+        # Get the GUID for the license
+        $skuId = Get-GuidForLicenseName -CsvUri $csvUrl -LicenseName $licenseType
 
         if ($skuId) {
             Write-Host "Assigning license $licenseType to new user..."
