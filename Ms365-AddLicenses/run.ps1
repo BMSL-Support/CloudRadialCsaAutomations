@@ -66,7 +66,7 @@ function Add-UserLicenses {
     # Construct the basic authentication header
     $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
     $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
-    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
+    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId
 
     # Get all licenses in the tenant
     $licenses = Get-MgSubscribedSku
