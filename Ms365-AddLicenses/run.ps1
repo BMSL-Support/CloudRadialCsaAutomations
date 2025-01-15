@@ -97,7 +97,7 @@ function Add-UserLicenses {
     }
 
     if ($licensesNotAvailable.Count -gt 0) {
-        $message += " Licenses not available: $($licensesNotAvailable -join ', ')."
+        $message += "`rLicenses not available: $($licensesNotAvailable -join ', ')."
     }
 
     return $message
