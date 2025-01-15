@@ -14,7 +14,7 @@
     JSON Structure
     {
         "TicketId": "123456",
-        "TenantId": "12345678-1234-1234-123456789012",
+        "TenantId": "12345678-1234-1234-1234-123456789012",
         "NewUserFirstName": "John",
         "NewUserLastName": "Doe",
         "NewUserEmail": "john.doe@example.com",
@@ -98,6 +98,12 @@ function Get-GuidForLicenseName {
     return $guid
 }
 
+# Function to check if the license is subscribed in the tenant
+function Get-SubscribedLicenses {
+    Write-Host "Retrieving subscribed licenses from tenant..."
+    return Get-MgSubscribedSku
+}
+
 # Download the CSV once and store it in a variable
 $csvUrl = "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
@@ -151,20 +157,32 @@ try {
         throw "Failed to create new user."
     }
 
+    # Retrieve the list of subscribed licenses from tenant
+    $subscribedLicenses = Get-SubscribedLicenses
+    Write-Host "Subscribed licenses retrieved."
+
     $licensesAssigned = @()
     foreach ($licenseType in $LicenseTypes) {
         $licenseType = $licenseType.Trim()
 
-        # Get the GUID for the license
-        $skuId = Get-GuidForLicenseName -CsvUri $csvUrl -LicenseName $licenseType
+        # Check if the license is available in the subscribed SKUs
+        $subscribedLicense = $subscribedLicenses | Where-Object { $_.SkuPartNumber -eq $licenseType }
 
-        if ($skuId) {
-            Write-Host "Assigning license $licenseType to new user..."
-            Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $skuId }
-            $licensesAssigned += $licenseType
-        }
-        else {
-            Write-Host "The license type $licenseType was not available."
+        if ($subscribedLicense) {
+            Write-Host "License $licenseType is available in the tenant."
+
+            # Get the GUID for the license
+            $skuId = Get-GuidForLicenseName -CsvUri $csvUrl -LicenseName $licenseType
+
+            if ($skuId) {
+                Write-Host "Assigning license $licenseType to new user..."
+                Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $skuId }
+                $licensesAssigned += $licenseType
+            } else {
+                Write-Host "The license type $licenseType was not found in the CSV."
+            }
+        } else {
+            Write-Host "License $licenseType is not available in the tenant."
         }
     }
 
