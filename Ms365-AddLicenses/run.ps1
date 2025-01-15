@@ -124,7 +124,7 @@ function Add-UserLicenses {
             $user = Get-MgUser -UserId $UserPrincipalName
             foreach ($skuId in $licensesToAdd) {
                 Write-Host "Adding license SKU ID: $skuId to user: $UserPrincipalName"
-                Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId}
+                Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
             $message = "Added licenses: $($licensesToAdd -join ', ')."
         } else {
