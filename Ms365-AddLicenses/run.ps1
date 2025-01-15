@@ -156,9 +156,6 @@ function Get-LicenseTypes {
     return $licenseTypes
 }
 
-# Debugging: Output the entire body to check structure
-Write-Host "Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
-
 # Ensure the UserPrincipalName exists in the body
 if ($Request.Body.UserPrincipalName) {
     $UserPrincipalName = $Request.Body.UserPrincipalName
