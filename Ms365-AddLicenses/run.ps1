@@ -66,7 +66,7 @@ function Add-UserLicenses {
     # Construct the basic authentication header
     $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
     $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
-    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
+    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId
 
     # Get all licenses in the tenant
     $licenses = Get-MgSubscribedSku
@@ -76,12 +76,20 @@ function Add-UserLicenses {
 
     $licensesToAdd = @()
     $licensesNotAvailable = @()
+    $debugInfo = @()
     foreach ($licenseType in $LicenseTypes) {
         $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
+        $debugInfo += "Checking license type: $licenseType, SKU ID: $skuId"
         $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
-        if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
-            $licensesToAdd += $skuId
+        if ($license) {
+            $debugInfo += "License found: $($license.SkuPartNumber), Enabled: $($license.PrepaidUnits.Enabled), Consumed: $($license.ConsumedUnits)"
+            if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
+                $licensesToAdd += $skuId
+            } else {
+                $licensesNotAvailable += $licenseType
+            }
         } else {
+            $debugInfo += "License not found for SKU ID: $skuId"
             $licensesNotAvailable += $licenseType
         }
     }
@@ -99,6 +107,9 @@ function Add-UserLicenses {
     if ($licensesNotAvailable.Count -gt 0) {
         $message += " Licenses not available: $($licensesNotAvailable -join ', ')."
     }
+
+    $debugMessage = "Debug info: $($debugInfo -join '; ')"
+    $message += " Debug: $debugMessage"
 
     return $message
 }
