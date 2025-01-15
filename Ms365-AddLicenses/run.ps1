@@ -65,20 +65,20 @@ function Add-UserLicenses {
 
     # Check for required inputs
     if (-not $UserPrincipalName) {
-        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'UserPrincipalName'."
-        break
+        Write-Host "ERROR: UserPrincipalName is required."
+        return
     }
     if (-not $TenantId) {
-        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'TenantId'."
-        break
+        Write-Host "ERROR: TenantId is required."
+        return
     }
     if (-not $RequestedLicense) {
-        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'RequestedLicense'."
-        break
+        Write-Host "ERROR: RequestedLicense is required."
+        return
     }
     if (-not $TicketId) {
-        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'TicketId'."
-        break
+        Write-Host "ERROR: TicketId is required."
+        return
     }
 
     # Construct the basic authentication header
@@ -148,7 +148,7 @@ function Get-LicenseTypes {
     )
 
     $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
-    $licenseTypes = @{}
+    $licenseTypes = @{ }
     foreach ($row in $csvData) {
         $licenseTypes[$row.'GUID'] = $row.'Product_Display_Name'
     }
@@ -180,7 +180,7 @@ $body = @{
     ResultStatus = "Success"
 }
 
-# Associate values to output bindings by calling 'Push-OutputBinding'.
+# Associate values to output bindings by calling 'Push-OutputBinding' to send the response
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode  = [HttpStatusCode]::OK
         Body        = $body
