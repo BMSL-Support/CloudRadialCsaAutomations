@@ -126,7 +126,7 @@ try {
 
     if ($newUser) {
         Write-Host "New user created: $($newUser.Id)"
-        $message = "New user $NewUserEmail created successfully. `rUsername: $NewUserEmail `rPassword: $Password"
+        $message = "New user $NewUserDisplayName created successfully.`r `rUsername: $NewUserEmail `rPassword: $Password"
         $UserPrincipalName = $newUser.UserPrincipalName
     } else {
         throw "Failed to create new user."
