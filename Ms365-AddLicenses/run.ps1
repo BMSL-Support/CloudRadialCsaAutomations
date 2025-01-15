@@ -121,7 +121,7 @@ function Add-UserLicenses {
 
     try {
         if ($licensesToAdd.Count -gt 0) {
-            $user = Get-MgUser -UserPrincipalName $UserPrincipalName
+            $user = Get-MgUser -UserId $UserPrincipalName
             foreach ($skuId in $licensesToAdd) {
                 Write-Host "Adding license SKU ID: $skuId to user: $UserPrincipalName"
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId}
