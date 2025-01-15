@@ -71,6 +71,12 @@ function Add-UserLicenses {
     # Get all licenses in the tenant
     $licenses = Get-MgSubscribedSku
 
+    # Output available licenses
+    Write-Host "Available licenses in the tenant:"
+    foreach ($license in $licenses) {
+        Write-Host "SKU ID: $($license.SkuId), SKU Part Number: $($license.SkuPartNumber), Enabled: $($license.PrepaidUnits.Enabled), Consumed: $($license.ConsumedUnits)"
+    }
+
     # Get license types
     $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
@@ -137,6 +143,9 @@ Write-Host "UserPrincipalName: $UserPrincipalName"
 Write-Host "TenantId: $TenantId"
 Write-Host "LicenseTypes: $($LicenseTypes -join ', ')"
 Write-Host "TicketId: $TicketId"
+
+# Debug the structure of the input JSON
+Write-Host "Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
 
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -LicenseTypes $LicenseTypes -TicketId $TicketId
 
