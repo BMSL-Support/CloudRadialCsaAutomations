@@ -118,7 +118,7 @@ function Add-UserLicenses {
         if ($licensesToAdd.Count -gt 0) {
             $user = Get-MgUser -UserId $UserPrincipalName
             foreach ($skuId in $licensesToAdd) {
-                Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId}
+                Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
             $message = "Added licenses: $($licensesPrettyNamesToAdd -join ', ')."
         } else {
