@@ -24,6 +24,7 @@
     UserPrincipalName - string value of the user's principal name
     TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
     LicenseTypes - array of license types to be assigned to the user
+    TicketId - string value of the ticket id
 
     JSON Structure
 
@@ -33,7 +34,8 @@
         "LicenseTypes": [
             "Office 365 E3",
             "Microsoft 365 Business Standard"
-        ]
+        ],
+        "TicketId": "123456"
     }
 
 .OUTPUTS
@@ -41,6 +43,7 @@
     JSON response with the following fields:
 
     Message - Descriptive string of result
+    TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
 
@@ -56,7 +59,8 @@ function Add-UserLicenses {
         [string]$AppId,
         [string]$SecretId,
         [string]$TenantId,
-        [array]$LicenseTypes
+        [array]$LicenseTypes,
+        [string]$TicketId
     )
 
     # Construct the basic authentication header
@@ -116,13 +120,15 @@ function Get-LicenseTypes {
 $UserPrincipalName = $Request.Body.UserPrincipalName
 $TenantId = $Request.Body.TenantId
 $LicenseTypes = $Request.Body.LicenseTypes
+$TicketId = $Request.Body.TicketId
 $AppId = $env:Ms365_AuthAppId
 $SecretId = $env:Ms365_AuthSecretId
 
-$message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -LicenseTypes $LicenseTypes
+$message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -LicenseTypes $LicenseTypes -TicketId $TicketId
 
 $body = @{
     Message      = $message
+    TicketId     = $TicketId
     ResultCode   = 200
     ResultStatus = "Success"
 }
