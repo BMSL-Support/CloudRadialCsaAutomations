@@ -156,7 +156,17 @@ function Get-LicenseTypes {
     return $licenseTypes
 }
 
-$UserPrincipalName = $Request.Body.UserPrincipalName
+# Debugging: Output the entire body to check structure
+Write-Host "Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
+
+# Ensure the UserPrincipalName exists in the body
+if ($Request.Body.UserPrincipalName) {
+    $UserPrincipalName = $Request.Body.UserPrincipalName
+} else {
+    Write-Host "ERROR: UserPrincipalName is missing from the request body."
+    exit
+}
+
 $TenantId = $Request.Body.TenantId
 $RequestedLicense = $Request.Body.RequestedLicense
 $TicketId = $Request.Body.TicketId
@@ -171,6 +181,7 @@ Write-Host "TicketId: $TicketId"
 # Debug the structure of the input JSON
 Write-Host "Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
 
+# Run the function to add licenses
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
 $body = @{
