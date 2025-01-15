@@ -20,7 +20,8 @@
         "NewUserEmail": "john.doe@example.com",
         "JobTitle": "Software Engineer",
         "OfficePhone": "+1234567890",
-        "MobilePhone": "+0987654321"
+        "MobilePhone": "+0987654321",
+        "LicenseTypes": ["ENTERPRISEPACK", "STANDARDPACK"]
     }
 .OUTPUTS
     JSON response with the following fields:
@@ -28,6 +29,9 @@
     TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
+    UserPrincipalName - UPN of the new user created
+    TenantId - Tenant Id of the Microsoft 365 tenant
+    LicenseTypes - Array of license types
 #>
 
 using namespace System.Net
@@ -38,6 +42,7 @@ Write-Host "Create New User function triggered."
 
 $resultCode = 200
 $message = ""
+$UserPrincipalName = ""
 
 $TicketId = $Request.Body.TicketId
 $TenantId = $Request.Body.TenantId
@@ -47,6 +52,7 @@ $NewUserEmail = $Request.Body.NewUserEmail
 $JobTitle = $Request.Body.JobTitle
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
+$LicenseTypes = $Request.Body.LicenseTypes
 $SecurityKey = $env:SecurityKey
 
 Write-Host "Received inputs:"
@@ -58,6 +64,7 @@ Write-Host "NewUserEmail: $NewUserEmail"
 Write-Host "JobTitle: $JobTitle"
 Write-Host "OfficePhone: $OfficePhone"
 Write-Host "MobilePhone: $MobilePhone"
+Write-Host "LicenseTypes: $LicenseTypes"
 
 # Function to generate a random password
 function New-RandomPassword {
@@ -120,6 +127,7 @@ try {
     if ($newUser) {
         Write-Host "New user created: $($newUser.Id)"
         $message = "New user $NewUserEmail created successfully. `rUsername: $NewUserEmail `rPassword: $Password"
+        $UserPrincipalName = $newUser.UserPrincipalName
     } else {
         throw "Failed to create new user."
     }
@@ -131,10 +139,13 @@ catch {
 }
 
 $body = @{
-    Message      = $message
-    TicketId     = $TicketId
-    ResultCode   = $resultCode
-    ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+    Message           = $message
+    TicketId          = $TicketId
+    ResultCode        = $resultCode
+    ResultStatus      = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+    UserPrincipalName = $UserPrincipalName
+    TenantId          = $TenantId
+    LicenseTypes      = $LicenseTypes
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
