@@ -38,8 +38,6 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-Write-Host "Create New User function triggered."
-
 $resultCode = 200
 $message = ""
 $UserPrincipalName = ""
@@ -55,17 +53,6 @@ $MobilePhone = $Request.Body.MobilePhone
 $LicenseTypes = $Request.Body.LicenseTypes
 $SecurityKey = $env:SecurityKey
 
-Write-Host "Received inputs:"
-Write-Host "TicketId: $TicketId"
-Write-Host "TenantId: $TenantId"
-Write-Host "NewUserFirstName: $NewUserFirstName"
-Write-Host "NewUserLastName: $NewUserLastName"
-Write-Host "NewUserEmail: $NewUserEmail"
-Write-Host "JobTitle: $JobTitle"
-Write-Host "OfficePhone: $OfficePhone"
-Write-Host "MobilePhone: $MobilePhone"
-Write-Host "LicenseTypes: $LicenseTypes"
-
 # Function to generate a random password
 function New-RandomPassword {
     param (
@@ -78,7 +65,6 @@ function New-RandomPassword {
 }
 
 $password = New-RandomPassword -length 16
-Write-Host "Generated Password: $Password"
 
 try {
     if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
@@ -103,16 +89,10 @@ try {
         $TicketId = ""
     }
 
-    Write-Host "New User Email: $NewUserEmail"
-    Write-Host "Tenant Id: $TenantId"
-    Write-Host "Ticket Id: $TicketId"
-
     $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
     $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-    Write-Host "Connecting to Microsoft Graph..."
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-    Write-Host "Connected to Microsoft Graph."
 
     # Generate the display name
     $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
@@ -120,12 +100,10 @@ try {
     # Extract the mailNickname from the NewUserEmail
     $mailNickname = $NewUserEmail.Split("@")[0]
 
-    Write-Host "Creating new user..."
     # Create the new user
     $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -MailNickname $mailNickname -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -AccountEnabled
 
     if ($newUser) {
-        Write-Host "New user created: $($newUser.Id)"
         $message = "New user $NewUserDisplayName created successfully.`r `rUsername: $NewUserEmail `rPassword: $Password"
         $UserPrincipalName = $newUser.UserPrincipalName
     } else {
@@ -135,7 +113,6 @@ try {
 catch {
     $message = "Error: $_"
     $resultCode = 500
-    Write-Host "Error: $_"
 }
 
 $body = @{
