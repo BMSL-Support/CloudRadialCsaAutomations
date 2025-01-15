@@ -139,7 +139,7 @@ function Add-UserLicenses {
         $message = "An error occurred while adding licenses: $_"
     }
 
-    return $message
+    return [string]$message
 }
 
 function Get-LicenseTypes {
@@ -173,7 +173,7 @@ $SecretId = $env:Ms365_AuthSecretId
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
 $body = @{
-    Message      = $message
+    Message      = [string]$message
     TicketId     = $TicketId
     ResultCode   = 200
     ResultStatus = "Success"
