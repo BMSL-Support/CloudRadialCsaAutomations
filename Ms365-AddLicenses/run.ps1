@@ -2,11 +2,11 @@
 
 .SYNOPSIS
 
-    This function adds Microsoft 365 licenses to an existing user based on the "LicenseType".
+    This function adds Microsoft 365 licenses to an existing user based on the "RequestedLicense".
 
 .DESCRIPTION
 
-    This function adds Microsoft 365 licenses to an existing user based on the "LicenseType".
+    This function adds Microsoft 365 licenses to an existing user based on the "RequestedLicense".
     
     The function requires the following environment variables to be set:
     
@@ -23,7 +23,7 @@
 
     UserPrincipalName - string value of the user's principal name
     TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
-    LicenseTypes - array of license types to be assigned to the user
+    RequestedLicense - array of license types to be assigned to the user
     TicketId - string value of the ticket id
 
     JSON Structure
@@ -31,7 +31,7 @@
     {
         "UserPrincipalName": "user@example.com",
         "TenantId": "12345678-1234-1234-1234-123456789012",
-        "LicenseTypes": [
+        "RequestedLicense": [
             "Office 365 E3",
             "Microsoft 365 Business Standard"
         ],
@@ -59,7 +59,7 @@ function Add-UserLicenses {
         [string]$AppId,
         [string]$SecretId,
         [string]$TenantId,
-        [array]$LicenseTypes,
+        [array]$RequestedLicense,
         [string]$TicketId
     )
 
@@ -82,8 +82,8 @@ function Add-UserLicenses {
 
     $licensesToAdd = @()
     $licensesNotAvailable = @()
-    Write-Host "LicenseTypes input: $($LicenseTypes -join ', ')"
-    foreach ($licenseType in $LicenseTypes) {
+    Write-Host "RequestedLicense input: $($RequestedLicense -join ', ')"
+    foreach ($licenseType in $RequestedLicense) {
         Write-Host "Processing license type: $licenseType"
         $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
         Write-Host "Checking license type: $licenseType, SKU ID: $skuId"
@@ -134,20 +134,20 @@ function Get-LicenseTypes {
 
 $UserPrincipalName = $Request.Body.UserPrincipalName
 $TenantId = $Request.Body.TenantId
-$LicenseTypes = $Request.Body.LicenseTypes
+$RequestedLicense = $Request.Body.RequestedLicense
 $TicketId = $Request.Body.TicketId
 $AppId = $env:Ms365_AuthAppId
 $SecretId = $env:Ms365_AuthSecretId
 
 Write-Host "UserPrincipalName: $UserPrincipalName"
 Write-Host "TenantId: $TenantId"
-Write-Host "LicenseTypes: $($LicenseTypes -join ', ')"
+Write-Host "RequestedLicense: $($RequestedLicense -join ', ')"
 Write-Host "TicketId: $TicketId"
 
 # Debug the structure of the input JSON
 Write-Host "Request Body: $($Request.Body | ConvertTo-Json -Depth 10)"
 
-$message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -LicenseTypes $LicenseTypes -TicketId $TicketId
+$message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
 $body = @{
     Message      = $message
