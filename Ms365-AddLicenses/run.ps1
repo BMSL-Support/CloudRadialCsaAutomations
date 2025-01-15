@@ -35,7 +35,7 @@
             "Office 365 E3",
             "Microsoft 365 Business Standard"
         ],
-        "TicketId": "123456"
+        "TicketId": "TICKET12345"
     }
 
 .OUTPUTS
@@ -66,7 +66,7 @@ function Add-UserLicenses {
     # Construct the basic authentication header
     $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
     $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
-    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
+    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId
 
     # Get all licenses in the tenant
     $licenses = Get-MgSubscribedSku
@@ -97,7 +97,7 @@ function Add-UserLicenses {
     }
 
     if ($licensesNotAvailable.Count -gt 0) {
-        $message += "`rLicenses not available: $($licensesNotAvailable -join ', ')."
+        $message += " Licenses not available: $($licensesNotAvailable -join ', ')."
     }
 
     return $message
