@@ -76,20 +76,20 @@ function Add-UserLicenses {
 
     $licensesToAdd = @()
     $licensesNotAvailable = @()
-    $debugInfo = @()
+    Write-Host "LicenseTypes input: $($LicenseTypes -join ', ')"
     foreach ($licenseType in $LicenseTypes) {
         $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
-        $debugInfo += "Checking license type: $licenseType, SKU ID: $skuId"
+        Write-Host "Checking license type: $licenseType, SKU ID: $skuId"
         $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
         if ($license) {
-            $debugInfo += "License found: $($license.SkuPartNumber), Enabled: $($license.PrepaidUnits.Enabled), Consumed: $($license.ConsumedUnits)"
+            Write-Host "License found: $($license.SkuPartNumber), Enabled: $($license.PrepaidUnits.Enabled), Consumed: $($license.ConsumedUnits)"
             if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
                 $licensesToAdd += $skuId
             } else {
                 $licensesNotAvailable += $licenseType
             }
         } else {
-            $debugInfo += "License not found for SKU ID: $skuId"
+            Write-Host "License not found for SKU ID: $skuId"
             $licensesNotAvailable += $licenseType
         }
     }
@@ -107,9 +107,6 @@ function Add-UserLicenses {
     if ($licensesNotAvailable.Count -gt 0) {
         $message += " Licenses not available: $($licensesNotAvailable -join ', ')."
     }
-
-    $debugMessage = "Debug info: $($debugInfo -join '; ')"
-    $message += " Debug: $debugMessage"
 
     return $message
 }
