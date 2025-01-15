@@ -66,7 +66,7 @@ function Add-UserLicenses {
     # Construct the basic authentication header
     $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
     $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
-    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId
+    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
 
     # Get all licenses in the tenant
     $licenses = Get-MgSubscribedSku
@@ -78,6 +78,7 @@ function Add-UserLicenses {
     $licensesNotAvailable = @()
     Write-Host "LicenseTypes input: $($LicenseTypes -join ', ')"
     foreach ($licenseType in $LicenseTypes) {
+        Write-Host "Processing license type: $licenseType"
         $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
         Write-Host "Checking license type: $licenseType, SKU ID: $skuId"
         $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
@@ -131,6 +132,11 @@ $LicenseTypes = $Request.Body.LicenseTypes
 $TicketId = $Request.Body.TicketId
 $AppId = $env:Ms365_AuthAppId
 $SecretId = $env:Ms365_AuthSecretId
+
+Write-Host "UserPrincipalName: $UserPrincipalName"
+Write-Host "TenantId: $TenantId"
+Write-Host "LicenseTypes: $($LicenseTypes -join ', ')"
+Write-Host "TicketId: $TicketId"
 
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -LicenseTypes $LicenseTypes -TicketId $TicketId
 
