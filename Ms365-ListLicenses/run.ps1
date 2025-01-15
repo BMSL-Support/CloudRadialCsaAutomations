@@ -44,52 +44,6 @@
 
 #>
 
-<# 
-
-.SYNOPSIS
-
-    This function lists all available Microsoft 365 licenses.
-
-.DESCRIPTION
-
-    This function lists all available Microsoft 365 licenses.
-    
-    The function requires the following environment variables to be set:
-    
-    Ms365_AuthAppId - Application Id of the Azure AD application
-    Ms365_AuthSecretId - Secret Id of the Azure AD application
-    Ms365_TenantId - Tenant Id of the Azure AD application
-    SecurityKey - Optional, use this as an additional step to secure the function
-
-    The function requires the following modules to be installed:
-    
-    Microsoft.Graph     
-
-.INPUTS
-
-    CompanyId - numeric company id
-    TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
-    SecurityKey - Optional, use this as an additional step to secure the function
-
-    JSON Structure
-
-    {
-        "CompanyId": "12"
-        "TenantId": "12345678-1234-1234-1234-123456789012",
-        "SecurityKey", "optional"
-    }
-
-.OUTPUTS
-
-    JSON response with the following fields:
-
-    Message - Descriptive string of result
-    TicketId - TicketId passed in Parameters
-    ResultCode - 200 for success, 500 for failure
-    ResultStatus - "Success" or "Failure"
-
-#>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
