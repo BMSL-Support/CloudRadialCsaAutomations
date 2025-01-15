@@ -111,7 +111,7 @@ try {
     $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
     Write-Host "Connecting to Microsoft Graph..."
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
     Write-Host "Connected to Microsoft Graph."
 
     # Generate the display name
