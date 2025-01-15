@@ -31,7 +31,7 @@
     ResultStatus - "Success" or "Failure"
     UserPrincipalName - UPN of the new user created
     TenantId - Tenant Id of the Microsoft 365 tenant
-    LicenseTypes - Array of license types
+    RequestedLicense - Array of license types
 #>
 
 using namespace System.Net
@@ -122,7 +122,7 @@ $body = @{
     ResultStatus      = if ($resultCode -eq 200) { "Success" } else { "Failure" }
     UserPrincipalName = $UserPrincipalName
     TenantId          = $TenantId
-    LicenseTypes      = $LicenseTypes
+    RequestedLicense  = $LicenseTypes
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
