@@ -63,6 +63,24 @@ function Add-UserLicenses {
         [string]$TicketId
     )
 
+    # Check for required inputs
+    if (-not $UserPrincipalName) {
+        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'UserPrincipalName'."
+        break
+    }
+    if (-not $TenantId) {
+        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'TenantId'."
+        break
+    }
+    if (-not $RequestedLicense) {
+        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'RequestedLicense'."
+        break
+    }
+    if (-not $TicketId) {
+        Write-Host "ERROR: A parameter cannot be found that matches parameter name 'TicketId'."
+        break
+    }
+
     # Construct the basic authentication header
     $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
     $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
