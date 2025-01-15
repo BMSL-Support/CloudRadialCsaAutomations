@@ -119,18 +119,24 @@ function Add-UserLicenses {
         }
     }
 
-    if ($licensesToAdd.Count -gt 0) {
-        $user = Get-MgUser -UserPrincipalName $UserPrincipalName
-        foreach ($skuId in $licensesToAdd) {
-            Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId}
+    try {
+        if ($licensesToAdd.Count -gt 0) {
+            $user = Get-MgUser -UserPrincipalName $UserPrincipalName
+            foreach ($skuId in $licensesToAdd) {
+                Write-Host "Adding license SKU ID: $skuId to user: $UserPrincipalName"
+                Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId}
+            }
+            $message = "Added licenses: $($licensesToAdd -join ', ')."
+        } else {
+            $message = "No licenses available to add."
         }
-        $message = "Added licenses: $($licensesToAdd -join ', ')."
-    } else {
-        $message = "No licenses available to add."
-    }
 
-    if ($licensesNotAvailable.Count -gt 0) {
-        $message += " Licenses not available: $($licensesNotAvailable -join ', ')."
+        if ($licensesNotAvailable.Count -gt 0) {
+            $message += " Licenses not available: $($licensesNotAvailable -join ', ')."
+        }
+    } catch {
+        Write-Host "ERROR: $_"
+        $message = "An error occurred while adding licenses: $_"
     }
 
     return $message
