@@ -99,6 +99,7 @@ function Add-UserLicenses {
     foreach ($licenseType in $RequestedLicense) {
         $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
         $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
+
         if ($license) {
             if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
                 $licensesToAdd += $skuId
@@ -118,11 +119,12 @@ function Add-UserLicenses {
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
+            # Get user object to apply licenses (we're not including this in the message, just applying licenses)
             $user = Get-MgUser -UserId $UserPrincipalName
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
-            # Join the license names into a single string
+            # Join the license names into a single string for the message
             $message += "Added licenses: $($licensesPrettyNamesToAdd -join ', ')."
         } else {
             $message += "No licenses available to add."
@@ -132,7 +134,6 @@ function Add-UserLicenses {
         if ($licensesNotAvailable.Count -gt 0) {
             $message += " Licenses not available: $($licensesPrettyNamesNotAvailable -join ', ')."
         }
-
     } catch {
         Write-Host "ERROR: $_"
         $message = "An error occurred while adding licenses: $_"
@@ -143,11 +144,13 @@ function Add-UserLicenses {
 
 function Get-LicenseTypes {
     param (
-        [Parameter (Mandatory=$true)] [String]$CsvUri
+        [Parameter (Mandatory=$true)]
+        [String]$CsvUri
     )
 
     $csvData = Invoke-RestMethod -Method Get -Uri $CsvUri | ConvertFrom-Csv
     $licenseTypes = @{ }
+
     foreach ($row in $csvData) {
         $licenseTypes[$row.'GUID'] = $row.'Product_Display_Name'
     }
@@ -172,15 +175,15 @@ $SecretId = $env:Ms365_AuthSecretId
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
 $body = @{
-    Message      = [string]$message
-    TicketId     = $TicketId
-    ResultCode   = 200
+    Message = [string]$message
+    TicketId = $TicketId
+    ResultCode = 200
     ResultStatus = "Success"
 }
 
 # Associate values to output bindings by calling 'Push-OutputBinding' to send the response
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode  = [HttpStatusCode]::OK
-        Body        = $body
-        ContentType = "application/json"
-    })
+    StatusCode = [HttpStatusCode]::OK
+    Body = $body
+    ContentType = "application/json"
+})
