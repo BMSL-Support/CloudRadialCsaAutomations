@@ -48,7 +48,6 @@
     ResultStatus - "Success" or "Failure"
 
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
