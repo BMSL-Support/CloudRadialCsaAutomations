@@ -55,7 +55,7 @@ function Add-ConnectWiseTicketNote {
         [string]$ClientId,
         [string]$TicketId,
         [string]$Text,
-        [boolean]$Internal = $false
+        [boolean]$Internal = $true
     )
 
     # Construct the API endpoint for adding a note
