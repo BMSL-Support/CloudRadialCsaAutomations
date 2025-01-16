@@ -88,9 +88,11 @@ function Add-UserLicenses {
 
     # Get all licenses in the tenant
     $licenses = Get-MgSubscribedSku
+    Write-Host "DEBUG: Retrieved licenses: $($licenses | Out-String)"
 
     # Get license types with pretty names
     $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+    Write-Host "DEBUG: Retrieved license types: $($licenseTypes | Out-String)"
 
     $licensesToAdd = @()
     $licensesNotAvailable = @()
@@ -114,12 +116,16 @@ function Add-UserLicenses {
         }
     }
 
+    Write-Host "DEBUG: Licenses to add: $($licensesToAdd -join ', ')"
+    Write-Host "DEBUG: Licenses not available: $($licensesNotAvailable -join ', ')"
+
     try {
         # Constructing the message for licenses added
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
             $user = Get-MgUser -UserId $UserPrincipalName
+            Write-Host "DEBUG: Retrieved user: $($user | Out-String)"
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
@@ -171,6 +177,8 @@ $AppId = $env:Ms365_AuthAppId
 $SecretId = $env:Ms365_AuthSecretId
 
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
+
+Write-Host "DEBUG: Final message: $message"
 
 $body = @{
     Message      = [string]$message
