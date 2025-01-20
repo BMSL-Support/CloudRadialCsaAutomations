@@ -142,7 +142,7 @@ function Add-UserLicenses {
 
     } catch {
         Write-Host "ERROR: $_"
-        $message = "An error occurred while adding licenses: $_"
+        $message = "An error occurred while adding licenses: $($_ | Out-String)"
     }
 
     return [string]$message
