@@ -117,7 +117,7 @@ $message = ""
 $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
 $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId
+Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
 # Get all licenses in the tenant
 $licenses = Get-MgSubscribedSku
