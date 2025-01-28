@@ -1,3 +1,0 @@
-@{
-Microsoft.Graph = '2.*'
-}
