@@ -2,11 +2,11 @@
 
 .SYNOPSIS
     
-    This function is used to add a user from a distribution group in Microsoft 365.
+    This function is used to add a user to multiple distribution groups in Microsoft 365.
 
 .DESCRIPTION
              
-    This function is used to add a user from a distribution group in Microsoft 365.
+    This function is used to add a user to multiple distribution groups in Microsoft 365.
     
     The function requires the following environment variables to be set:
         
@@ -21,7 +21,7 @@
 .INPUTS
 
     UserPrincipalName - user principal name that exists in the tenant
-    GroupName - group name that exists in the tenant
+    GroupNames - array of group names that exist in the tenant
     TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
     TicketId - optional - string value of the ticket id used for transaction tracking
     SecurityKey - Optional, use this as an additional step to secure the function
@@ -30,7 +30,7 @@
 
     {
         "UserPrincipalName": "user@domain.com",
-        "GroupName": "Group Name",
+        "GroupNames": ["Group Name 1", "Group Name 2"],
         "TenantId": "12345678-1234-1234-123456789012",
         "TicketId": "123456",
         "SecurityKey": "optional"
@@ -51,13 +51,13 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-Write-Host "Add User to Group function triggered."
+Write-Host "Add User to Groups function triggered."
 
 $resultCode = 200
 $message = ""
 
 $UserPrincipalName = $Request.Body.UserPrincipalName
-$GroupName = $Request.Body.GroupName
+$GroupNames = $Request.Body.GroupNames
 $TenantId = $Request.Body.TenantId
 $TicketId = $Request.Body.TicketId
 $SecurityKey = $env:SecurityKey
@@ -75,12 +75,9 @@ else {
     $UserPrincipalName = $UserPrincipalName.Trim()
 }
 
-if (-Not $GroupName) {
-    $message = "GroupName cannot be blank."
+if (-Not $GroupNames -or $GroupNames.Count -eq 0) {
+    $message = "GroupNames cannot be blank."
     $resultCode = 500
-}
-else {
-    $GroupName = $GroupName.Trim()
 }
 
 if (-Not $TenantId) {
@@ -95,7 +92,7 @@ if (-Not $TicketId) {
 }
 
 Write-Host "User Principal Name: $UserPrincipalName"
-Write-Host "Group Name: $GroupName"
+Write-Host "Group Names: $($GroupNames -join ', ')"
 Write-Host "Tenant Id: $TenantId"
 Write-Host "Ticket Id: $TicketId"
 
@@ -106,36 +103,40 @@ if ($resultCode -Eq 200)
 
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
 
-    $GroupObject = Get-MgGroup -Filter "displayName eq '$GroupName'"
-
-    Write-Host $GroupObject.DisplayName
-    Write-Host $GroupObject.Id
-
     $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
 
     Write-Host $UserObject.userPrincipalName
     Write-Host $UserObject.Id
 
-    if (-Not $GroupObject) {
-        $message = "Request failed. Group `"$GroupName`" could not be found to add user `"$UserPrincipalName`" to."
-        $resultCode = 500
-    }
-
     if (-Not $UserObject) {
-        $message = "Request failed. User `"$UserPrincipalName`" could not be found to add to group `"$GroupName`"."
+        $message = "Request failed. User `"$UserPrincipalName`" could not be found."
         $resultCode = 500
     }
 
-    $GroupMembers = Get-MgGroupMember -GroupId $GroupObject.Id
+    foreach ($GroupName in $GroupNames) {
+        $GroupObject = Get-MgGroup -Filter "displayName eq '$GroupName'"
 
-    if ($GroupMembers.Id -Contains $UserObject.Id) {
-        $message = "Request failed. User `"$UserPrincipalName`" is already a member of group `"$GroupName`"."
-        $resultCode = 500
-    } 
+        Write-Host $GroupObject.DisplayName
+        Write-Host $GroupObject.Id
 
-    if ($resultCode -Eq 200) {
-        New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
-        $message = "Request completed. `"$UserPrincipalName`" has been added to group `"$GroupName`"."
+        if (-Not $GroupObject) {
+            $message += "Request failed. Group `"$GroupName`" could not be found to add user `"$UserPrincipalName`" to.`n"
+            $resultCode = 500
+            continue
+        }
+
+        $GroupMembers = Get-MgGroupMember -GroupId $GroupObject.Id
+
+        if ($GroupMembers.Id -Contains $UserObject.Id) {
+            $message += "Request failed. User `"$UserPrincipalName`" is already a member of group `"$GroupName`".`n"
+            $resultCode = 500
+            continue
+        } 
+
+        if ($resultCode -Eq 200) {
+            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
+            $message += "Request completed. `"$UserPrincipalName`" has been added to group `"$GroupName`".`n"
+        }
     }
 }
 
