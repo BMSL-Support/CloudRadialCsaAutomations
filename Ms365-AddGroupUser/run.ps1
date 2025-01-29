@@ -20,7 +20,7 @@
 
 .INPUTS
 
-    UserEmail - user email address that exists in the tenant
+    UserPrincipalName - user principal name that exists in the tenant
     GroupName - group name that exists in the tenant
     TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
     TicketId - optional - string value of the ticket id used for transaction tracking
@@ -29,11 +29,11 @@
     JSON Structure
 
     {
-        "UserEmail": "email@address.com",
+        "UserPrincipalName": "user@domain.com",
         "GroupName": "Group Name",
         "TenantId": "12345678-1234-1234-123456789012",
-        "TicketId": "123456,
-        "SecurityKey", "optional"
+        "TicketId": "123456",
+        "SecurityKey": "optional"
     }
 
 .OUTPUTS 
@@ -56,7 +56,7 @@ Write-Host "Add User to Group function triggered."
 $resultCode = 200
 $message = ""
 
-$UserEmail = $Request.Body.UserEmail
+$UserPrincipalName = $Request.Body.UserPrincipalName
 $GroupName = $Request.Body.GroupName
 $TenantId = $Request.Body.TenantId
 $TicketId = $Request.Body.TicketId
@@ -67,15 +67,15 @@ if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
     break;
 }
 
-if (-Not $userEmail) {
-    $message = "UserEmail cannot be blank."
+if (-Not $UserPrincipalName) {
+    $message = "UserPrincipalName cannot be blank."
     $resultCode = 500
 }
 else {
-    $UserEmail = $UserEmail.Trim()
+    $UserPrincipalName = $UserPrincipalName.Trim()
 }
 
-if (-Not $groupName) {
+if (-Not $GroupName) {
     $message = "GroupName cannot be blank."
     $resultCode = 500
 }
@@ -94,7 +94,7 @@ if (-Not $TicketId) {
     $TicketId = ""
 }
 
-Write-Host "User Email: $UserEmail"
+Write-Host "User Principal Name: $UserPrincipalName"
 Write-Host "Group Name: $GroupName"
 Write-Host "Tenant Id: $TenantId"
 Write-Host "Ticket Id: $TicketId"
@@ -111,31 +111,31 @@ if ($resultCode -Eq 200)
     Write-Host $GroupObject.DisplayName
     Write-Host $GroupObject.Id
 
-    $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserEmail'"
+    $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
 
     Write-Host $UserObject.userPrincipalName
     Write-Host $UserObject.Id
 
     if (-Not $GroupObject) {
-        $message = "Request failed. Group `"$GroupName`" could not be found to add user `"$UserEmail`" to."
+        $message = "Request failed. Group `"$GroupName`" could not be found to add user `"$UserPrincipalName`" to."
         $resultCode = 500
     }
 
     if (-Not $UserObject) {
-        $message = "Request failed. User `"$UserEmail`" not be found to add to group `"$GroupName`"."
+        $message = "Request failed. User `"$UserPrincipalName`" could not be found to add to group `"$GroupName`"."
         $resultCode = 500
     }
 
     $GroupMembers = Get-MgGroupMember -GroupId $GroupObject.Id
 
     if ($GroupMembers.Id -Contains $UserObject.Id) {
-        $message = "Request failed. User `"$UserEmail`" is already a member of group `"$GroupName`"."
+        $message = "Request failed. User `"$UserPrincipalName`" is already a member of group `"$GroupName`"."
         $resultCode = 500
     } 
 
     if ($resultCode -Eq 200) {
         New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
-        $message = "Request completed. `"$UserEmail`" has been added to group `"$GroupName`"."
+        $message = "Request completed. `"$UserPrincipalName`" has been added to group `"$GroupName`"."
     }
 }
 
