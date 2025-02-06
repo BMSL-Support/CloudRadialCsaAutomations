@@ -62,7 +62,7 @@ $endpoint = "$ApiBaseUrl/v4_6_release/apis/3.0/$CompanyId/service/tickets/$Ticke
 
 # Define the headers for authentication
 $headers = @{
-    "Authorization" = "Bearer $PublicKey:$PrivateKey"
+    "Authorization" = "Bearer $($PublicKey):$($PrivateKey)"   # Use $() to properly concatenate the public and private key
     "Content-Type"  = "application/json"
     "clientid"      = $ClientId
 }
