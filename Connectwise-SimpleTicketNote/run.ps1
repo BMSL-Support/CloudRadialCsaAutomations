@@ -61,7 +61,7 @@ function Add-ConnectWiseTicketNote {
         Text = $Text
         Internal = $Internal
     }
-    $result = New-CWMTicketNote @noteParams
+    $result = Add-CWMTicketNote @noteParams
 
     Write-Host $result
     return $result
@@ -86,7 +86,7 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $internal = $false
+    $Internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
