@@ -26,19 +26,6 @@
     JSON structure of the response from the ConnectWise API
 #>
 
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$TicketId,
-
-    [Parameter(Mandatory=$true)]
-    [string]$Message,
-
-    [Parameter(Mandatory=$true)]
-    [bool]$Internal,
-
-    [string]$SecurityKey
-)
-
 # Get environment variables
 $ApiBaseUrl = $env:ConnectWisePsa_ApiBaseUrl
 $CompanyId = $env:ConnectWisePsa_ApiCompanyId
@@ -47,23 +34,25 @@ $PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
 $ClientId = $env:ConnectWisePsa_ApiClientId
 $SecretKey = $env:SecurityKey
 
-# Check if the HTTP request body is being passed correctly
-if ($Request) {
-    $body = $Request.Body | ConvertFrom-Json
+# Ensure the HTTP request body is correctly parsed
+$body = $Request.Body | ConvertFrom-Json
 
-    $TicketId = $body.TicketId
-    $Message = $body.Message
-    $Internal = $body.Internal
-    $SecurityKey = $body.SecurityKey
-}
+$TicketId = $body.TicketId
+$Message = $body.Message
+$Internal = $body.Internal
+$SecurityKey = $body.SecurityKey
 
-# Validate if the SecurityKey matches, if provided
+# Check if the SecurityKey is valid (optional)
 if ($SecurityKey -and $SecurityKey -ne $SecretKey) {
-    Write-Host "Invalid SecurityKey"
+    $Response = @{
+        status = "error"
+        message = "Invalid SecurityKey"
+    }
+    $Response | ConvertTo-Json
     exit
 }
 
-# Create the note payload
+# Prepare the note payload
 $note = @{
     "ticketId" = $TicketId
     "note"     = $Message
@@ -76,16 +65,22 @@ $noteJson = $note | ConvertTo-Json
 # Create the API endpoint
 $endpoint = "$ApiBaseUrl/v4_6_release/apis/3.0/$CompanyId/service/tickets/$TicketId/notes"
 
-# Define the headers for authentication
-$authorizationValue = "Bearer " + $PublicKey + ":" + $PrivateKey
+# Set up the authorization headers
+$authorizationValue = "Bearer $PublicKey:$PrivateKey"
 $headers = @{
     "Authorization" = $authorizationValue
     "Content-Type"  = "application/json"
     "clientid"      = $ClientId
 }
 
-# Make the API call
+# Make the API call to ConnectWise
 $response = Invoke-RestMethod -Uri $endpoint -Method Post -Headers $headers -Body $noteJson
 
-# Return the response as JSON
-$response | ConvertTo-Json
+# Return the API response as JSON
+$Response = @{
+    status  = "success"
+    message = "Note added successfully"
+    data    = $response
+}
+
+$Response | ConvertTo-Json
