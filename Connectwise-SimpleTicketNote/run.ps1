@@ -53,7 +53,7 @@ function Add-ConnectWiseTicketNote {
         PrivateKey = $PrivateKey
         ClientId = $ClientId
     }
-    Connect-CWManage @cwParams
+    Connect-CWM @cwParams
 
     # Create the note object
     $noteParams = @{
@@ -61,7 +61,7 @@ function Add-ConnectWiseTicketNote {
         Text = $Text
         Internal = $Internal
     }
-    $result = Add-CWManageTicketNote @noteParams
+    $result = New-CWMTicketNote @noteParams
 
     Write-Host $result
     return $result
