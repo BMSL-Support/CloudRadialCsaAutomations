@@ -61,8 +61,9 @@ $noteJson = $note | ConvertTo-Json
 $endpoint = "$ApiBaseUrl/v4_6_release/apis/3.0/$CompanyId/service/tickets/$TicketId/notes"
 
 # Define the headers for authentication
+$authorizationValue = "Bearer " + $PublicKey + ":" + $PrivateKey
 $headers = @{
-    "Authorization" = "Bearer $($PublicKey):$($PrivateKey)"   # Use $() to properly concatenate the public and private key
+    "Authorization" = $authorizationValue
     "Content-Type"  = "application/json"
     "clientid"      = $ClientId
 }
