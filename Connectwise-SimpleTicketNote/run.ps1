@@ -27,12 +27,12 @@
 #>
 
 # Get environment variables
-$ApiBaseUrl = $env:ConnectWisePsa_ApiBaseUrl
-$CompanyId = $env:ConnectWisePsa_ApiCompanyId
-$PublicKey = $env:ConnectWisePsa_ApiPublicKey
-$PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
-$ClientId = $env:ConnectWisePsa_ApiClientId
-$SecretKey = $env:SecurityKey
+$ApiBaseUrl = ${env:ConnectWisePsa_ApiBaseUrl}
+$CompanyId = ${env:ConnectWisePsa_ApiCompanyId}
+$PublicKey = ${env:ConnectWisePsa_ApiPublicKey}
+$PrivateKey = ${env:ConnectWisePsa_ApiPrivateKey}
+$ClientId = ${env:ConnectWisePsa_ApiClientId}
+$SecretKey = ${env:SecurityKey}
 
 # Ensure the HTTP request body is correctly parsed
 $body = $Request.Body | ConvertFrom-Json
