@@ -2,7 +2,7 @@
 .SYNOPSIS
     This function is used to add a note to a ConnectWise ticket.
 .DESCRIPTION
-    This function is used to add a note to a ConnectWise ticket.
+    This function adds a note to a ConnectWise ticket using the ConnectWise Manage API.
     The function requires the following environment variables to be set:
     ConnectWisePsa_ApiBaseUrl - Base URL of the ConnectWise API
     ConnectWisePsa_ApiCompanyId - Company Id of the ConnectWise API
@@ -10,12 +10,10 @@
     ConnectWisePsa_ApiPrivateKey - Private Key of the ConnectWise API
     ConnectWisePsa_ApiClientId - Client Id of the ConnectWise API
     SecurityKey - Optional, use this as an additional step to secure the function
-    The function requires the following modules to be installed:
-    ConnectWiseManageAPI
 .INPUTS
     TicketId - string value of numeric ticket number
     Message - text of note to add
-    Internal - boolean indicating whether not should be internal only
+    Internal - boolean indicating whether the note should be internal only
     SecurityKey - optional security key to secure the function
     JSON Structure
     {
@@ -28,87 +26,49 @@
     JSON structure of the response from the ConnectWise API
 #>
 
-using namespace System.Net
+param(
+    [string]$TicketId,
+    [string]$Message,
+    [bool]$Internal,
+    [string]$SecurityKey
+)
 
-param($Request, $TriggerMetadata)
+# Get environment variables
+$ApiBaseUrl = $env:ConnectWisePsa_ApiBaseUrl
+$CompanyId = $env:ConnectWisePsa_ApiCompanyId
+$PublicKey = $env:ConnectWisePsa_ApiPublicKey
+$PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
+$ClientId = $env:ConnectWisePsa_ApiClientId
+$SecretKey = $env:SecurityKey
 
-function Add-ConnectWiseTicketNote {
-    param (
-        [string]$ConnectWiseUrl,
-        [string]$PublicKey,
-        [string]$PrivateKey,
-        [string]$ClientId,
-        [string]$TicketId,
-        [string]$Text,
-        [boolean]$Internal = $true
-    )
-
-    # Import the ConnectWiseManageAPI module
-    Import-Module ConnectWiseManageAPI
-
-    # Set up the ConnectWise API connection
-    $cwParams = @{
-        ConnectWiseUrl = $ConnectWiseUrl
-        PublicKey = $PublicKey
-        PrivateKey = $PrivateKey
-        ClientId = $ClientId
-    }
-    Connect-CWM @cwParams
-
-    # Create the note object
-    $noteParams = @{
-        TicketId = $TicketId
-        Text = $Text
-        Internal = $Internal
-    }
-    $result = Add-CWMTicketNote @noteParams
-
-    Write-Host $result
-    return $result
+# Validate if the SecurityKey matches, if provided
+if ($SecurityKey -and $SecurityKey -ne $SecretKey) {
+    Write-Host "Invalid SecurityKey"
+    exit
 }
 
-$TicketId = $Request.Body.TicketId
-$Text = $Request.Body.Message
-$Internal = $Request.Body.Internal
-$SecurityKey = $env:SecurityKey
-
-if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
-    Write-Host "Invalid security key"
-    break;
+# Create the note payload
+$note = @{
+    "ticketId" = $TicketId
+    "note"     = $Message
+    "internal" = $Internal
 }
 
-if (-Not $TicketId) {
-    Write-Host "Missing ticket number"
-    break;
+# Convert the note to JSON
+$noteJson = $note | ConvertTo-Json
+
+# Create the API endpoint
+$endpoint = "$ApiBaseUrl/v4_6_release/apis/3.0/$CompanyId/service/tickets/$TicketId/notes"
+
+# Define the headers for authentication
+$headers = @{
+    "Authorization" = "Bearer $PublicKey:$PrivateKey"
+    "Content-Type"  = "application/json"
+    "clientid"      = $ClientId
 }
-if (-Not $Text) {
-    Write-Host "Missing ticket text"
-    break;
-}
-if (-Not $Internal) {
-    $Internal = $false
-}
 
-Write-Host "TicketId: $TicketId"
-Write-Host "Text: $Text"
-Write-Host "Internal: $Internal"
+# Make the API call
+$response = Invoke-RestMethod -Uri $endpoint -Method Post -Headers $headers -Body $noteJson
 
-$result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
-    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
-    -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
-    -ClientId $env:ConnectWisePsa_ApiClientId `
-    -TicketId $TicketId `
-    -Text $Text `
-    -Internal $Internal
-
-Write-Host $result.Message
-
-$body = @{
-    response = ($result | ConvertTo-Json);
-} 
-
-Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-    StatusCode = [HttpStatusCode]::OK
-    Body = $body
-    ContentType = "application/json"
-})
+# Return the response as JSON
+$response | ConvertTo-Json
