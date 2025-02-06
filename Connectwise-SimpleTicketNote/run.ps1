@@ -27,9 +27,15 @@
 #>
 
 param(
+    [Parameter(Mandatory=$true)]
     [string]$TicketId,
+
+    [Parameter(Mandatory=$true)]
     [string]$Message,
+
+    [Parameter(Mandatory=$true)]
     [bool]$Internal,
+
     [string]$SecurityKey
 )
 
