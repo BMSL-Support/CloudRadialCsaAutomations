@@ -47,6 +47,16 @@ $PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
 $ClientId = $env:ConnectWisePsa_ApiClientId
 $SecretKey = $env:SecurityKey
 
+# Check if the HTTP request body is being passed correctly
+if ($Request) {
+    $body = $Request.Body | ConvertFrom-Json
+
+    $TicketId = $body.TicketId
+    $Message = $body.Message
+    $Internal = $body.Internal
+    $SecurityKey = $body.SecurityKey
+}
+
 # Validate if the SecurityKey matches, if provided
 if ($SecurityKey -and $SecurityKey -ne $SecretKey) {
     Write-Host "Invalid SecurityKey"
