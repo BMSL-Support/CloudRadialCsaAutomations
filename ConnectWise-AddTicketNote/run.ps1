@@ -34,7 +34,7 @@
         "TicketId": "123456",
         "Message": "This is a note",
         "Internal": true,
-        "SecurityKey": "optional"
+        "SecurityKey", "optional"
     }
 
 .OUTPUTS
@@ -55,7 +55,7 @@ function Add-ConnectWiseTicketNote {
         [string]$ClientId,
         [string]$TicketId,
         [string]$Text,
-        [boolean]$Internal = $true
+        [boolean]$Internal = $false
     )
 
     # Construct the API endpoint for adding a note
@@ -76,12 +76,10 @@ function Add-ConnectWiseTicketNote {
         "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
         "clientId" = $ClientId
-        "ConnectionMethod" = 'Key'
-        "Accept" = "application/vnd.connectwise.com+json; version=v2024_1"
     }
 
     # Make the API request to add the note
-    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload -AllowInsecureRedirect
+    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
     Write-Host $result
     return $result
 }
@@ -111,7 +109,6 @@ if (-Not $Internal) {
 Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
-Write-Host "APIUrl: $apiUrl"
 
 $result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
     -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
