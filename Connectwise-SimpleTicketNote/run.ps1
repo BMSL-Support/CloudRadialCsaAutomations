@@ -76,6 +76,7 @@ function Add-ConnectWiseTicketNote {
         "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
         "clientId" = $ClientId
+        "Accept" = "application/vnd.connectwise.com+json; version=v2024_1"
     }
 
     # Make the API request to add the note
