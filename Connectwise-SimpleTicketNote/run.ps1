@@ -78,7 +78,7 @@ function Add-ConnectWiseTicketNote {
     Write-Host "Payload: $notePayload"
     
     # Set up the authentication headers
-    $authHeader = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
+    $authHeader = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey"))
     $headers = @{
         "Authorization" = $authHeader
         "Content-Type" = "application/json"
