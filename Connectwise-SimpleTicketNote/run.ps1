@@ -78,16 +78,17 @@ function Add-ConnectWiseTicketNote {
     Write-Host "Payload: $notePayload"
     
     # Set up the authentication headers
+    $authHeader = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
     $headers = @{
-        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
+        "Authorization" = $authHeader
         "Content-Type" = "application/json"
         "clientId" = $ClientId
-        "ConnectionMethod" = 'Key'
         "Accept" = "application/vnd.connectwise.com+json; version=v2024_1"
     }
 
     # Debugging output
     Write-Host "Headers: $headers"
+    Write-Host "Authorization Header: $authHeader"
 
     # Make the API request
     $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
