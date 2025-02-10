@@ -75,10 +75,8 @@ if (-not $ticketId -or -not $message) {
 
 # Prepare the note object
 $note = @{
-    "ticketId": $ticketId,
-    "text": $message,
-    "detailDescriptionFlag": true,
-    "internalAnalysisFlag": $internalNote
+    text = $message
+    internalAnalysisFlag = $internalNote
 }
 
 # Convert the note object to JSON
