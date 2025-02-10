@@ -84,7 +84,7 @@ $note = @{
 $json = $note | ConvertTo-Json
 
 # Set up the API request
-$apiUrl = "https://webhook.site/251286a7-6f09-4c19-b373-28c6219a4a3e"
+$apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
 $authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:ConnectWisePsa_ApiCompanyId}+${env:ConnectWisePsa_ApiPublicKey}:${env:ConnectWisePsa_ApiPrivateKey}"))
 $headers = @{
     "Authorization" = "Basic $authHeader"
