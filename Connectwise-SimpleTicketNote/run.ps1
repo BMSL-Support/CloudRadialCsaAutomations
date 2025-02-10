@@ -47,7 +47,7 @@ using namespace System.Net
 param($Request, $TriggerMetadata)
 
 # Read the request body
-$requestBody = Get-Content -Raw -InputObject $Request.Body
+$requestBody = [System.IO.StreamReader]::new($Request.Body).ReadToEnd()
 $data = $requestBody | ConvertFrom-Json
 
 # Extract data from the request
