@@ -42,65 +42,69 @@
     JSON structure of the response from the ConnectWise API
 
 #>
+using namespace System.Net
 
-# ConnectWise Ticket Note Function
+param($Request, $TriggerMetadata)
 
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$TicketId,
+# Check if $Request.Body is already a string or object and use it directly
+$requestBody = $Request.Body
 
-    [Parameter(Mandatory=$true)]
-    [string]$Message,
-
-    [Parameter(Mandatory=$true)]
-    [bool]$Internal,
-
-    [string]$SecurityKey
-)
-
-# Check for security key (if required)
-$EnvSecurityKey = $env:SecurityKey
-if ($SecurityKey -and $SecurityKey -ne $EnvSecurityKey) {
-    return @{ message = "Invalid Security Key." } | ConvertTo-Json
+# If it's a Stream, read it and convert to a string
+if ($requestBody -is [System.IO.Stream]) {
+    $requestBody = [System.Text.Encoding]::UTF8.GetString($Request.Body.ReadToEnd())
 }
 
-# Read the environment variables
-$ApiBaseUrl = $env:ConnectWisePsa_ApiBaseUrl
-$ApiCompanyId = $env:ConnectWisePsa_ApiCompanyId
-$ApiPublicKey = $env:ConnectWisePsa_ApiPublicKey
-$ApiPrivateKey = $env:ConnectWisePsa_ApiPrivateKey
-$ApiClientId = $env:ConnectWisePsa_ApiClientId
-
-# Check if all required environment variables are set
-if (-not $ApiBaseUrl -or -not $ApiCompanyId -or -not $ApiPublicKey -or -not $ApiPrivateKey -or -not $ApiClientId) {
-    return @{ message = "Missing required environment variables." } | ConvertTo-Json
+# If $requestBody is already an object, no need to decode
+if ($requestBody -is [string]) {
+    $data = $requestBody | ConvertFrom-Json
+} elseif ($requestBody -is [hashtable]) {
+    $data = $requestBody
 }
 
-# Initialize ConnectWise API Client
-$modulePath = "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1" # Adjust this path
-Import-Module $modulePath
+# Extract data from the request
+$ticketId = $data.TicketId
+$message = $data.Message
+$internalNote = $data.Internal
 
-# Build the ticket note object
-$ticketNote = @{
-    "internalNote" = $Internal
-    "text"         = $Message
-    "ticket"       = @{
-        "id" = $TicketId
+if (-not $ticketId -or -not $message) {
+    return @{
+        statusCode = [HttpStatusCode]::BadRequest
+        body = "Please pass a valid TicketId and Message in the request body"
     }
 }
 
-# Use the ConnectWise API to add the note to the ticket
-try {
-    $response = Add-CWTicketNote -CompanyId $ApiCompanyId `
-                                  -ApiPublicKey $ApiPublicKey `
-                                  -ApiPrivateKey $ApiPrivateKey `
-                                  -ApiClientId $ApiClientId `
-                                  -ApiBaseUrl $ApiBaseUrl `
-                                  -TicketNote $ticketNote
-
-    # Return the response from the API
-    return $response | ConvertTo-Json
+# Prepare the note object
+$note = @{
+    ticketId = $ticketId
+    text = $message
+    internalAnalysisFlag = $internalNote
 }
-catch {
-    return @{ message = "Error occurred: $_" } | ConvertTo-Json
+
+# Convert the note object to JSON
+$json = $note | ConvertTo-Json
+
+# Set up the API request
+#$apiUrl = "${env:ConnectWisePsa_ApiBaseUrl}/v4_6_release/apis/3.0/service/tickets/$ticketId/notes"
+$apiUrl = "${env:webhook_test}"
+$authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:ConnectWisePsa_ApiCompanyId}+${env:ConnectWisePsa_ApiPublicKey}:${env:ConnectWisePsa_ApiPrivateKey}"))
+$headers = @{
+    "Authorization" = "Basic $authHeader"
+    "Accept" = "application/vnd.connectwise.com+json; version=v2024.1"
+    "clientid" = "${env:ConnectWisePsa_ApiClientId}"
+}
+
+# Send the API request
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $json -ContentType "application/json"
+
+# Check for successful response
+if ($response -and $response.StatusCode -eq 200) {
+    return @{
+        statusCode = [HttpStatusCode]::OK
+        body = "Note created successfully"
+    }
+} else {
+    return @{
+        statusCode = [HttpStatusCode]::BadRequest
+        body = "Failed to create note"
+    }
 }
