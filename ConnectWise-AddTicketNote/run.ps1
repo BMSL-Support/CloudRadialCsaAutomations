@@ -72,8 +72,9 @@ function Add-ConnectWiseTicketNote {
     } | ConvertTo-Json
     write-host "notePayload = $notePayload"
     # Set up the authentication headers
+    $authkey = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey:$env:ConnectWisePsa_ApiPrivateKey"))
     $headers = @{
-        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey:$env:ConnectWisePsa_ApiPrivateKey"))
+        "Authorization" = "Basic " + "$authkey"
         "Content-Type" = "application/json"
         "Accept" = "application/vnd.connectwise.com+json; version=v2024.1"
         "clientId" = $ClientId
