@@ -46,9 +46,20 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-# Read the request body (fix for stream type)
-$requestBody = [System.Text.Encoding]::UTF8.GetString($Request.Body.ReadToEnd())
-$data = $requestBody | ConvertFrom-Json
+# Check if $Request.Body is already a string or object and use it directly
+$requestBody = $Request.Body
+
+# If it's a Stream, read it and convert to a string
+if ($requestBody -is [System.IO.Stream]) {
+    $requestBody = [System.Text.Encoding]::UTF8.GetString($Request.Body.ReadToEnd())
+}
+
+# If $requestBody is already an object, no need to decode
+if ($requestBody -is [string]) {
+    $data = $requestBody | ConvertFrom-Json
+} elseif ($requestBody -is [hashtable]) {
+    $data = $requestBody
+}
 
 # Extract data from the request
 $ticketId = $data.TicketId
@@ -81,9 +92,10 @@ $headers = @{
 }
 
 # Send the API request
-$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $json
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $json -ContentType "application/json"
 
-if ($response.StatusCode -eq 200) {
+# Check for successful response
+if ($response -and $response.StatusCode -eq 200) {
     return @{
         statusCode = [HttpStatusCode]::OK
         body = "Note created successfully"
