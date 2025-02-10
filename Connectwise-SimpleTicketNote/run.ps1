@@ -88,7 +88,6 @@ $authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:C
 $headers = @{
     "Authorization" = "Basic $authHeader"
     "Accept" = "*/*"
-    "Content-Type" = "application/json"
 }
 
 # Send the API request
