@@ -89,7 +89,7 @@ $apiUrl = "${env:webhook_test}"
 $authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:ConnectWisePsa_ApiCompanyId}+${env:ConnectWisePsa_ApiPublicKey}:${env:ConnectWisePsa_ApiPrivateKey}"))
 $headers = @{
     "Authorization" = "Basic $authHeader"
-    "Accept" = "application/vnd.connectwise.com+json; version=v2024_1"
+    "Accept" = "application/vnd.connectwise.com+json; version=v2024.1"
 }
 
 # Send the API request
