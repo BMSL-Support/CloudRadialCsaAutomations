@@ -42,103 +42,57 @@
     JSON structure of the response from the ConnectWise API
 
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-function Add-ConnectWiseTicketNote {
-    param (
-        [string]$ConnectWiseUrl,
-        [string]$PublicKey,
-        [string]$PrivateKey,
-        [string]$ClientId,
-        [string]$TicketId,
-        [string]$Text,
-        [boolean]$Internal = $false
-    )
+# Read the request body
+$requestBody = Get-Content -Raw -InputObject $Request.Body
+$data = $requestBody | ConvertFrom-Json
 
-    # Construct the API endpoint for adding a note
-    $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
+# Extract data from the request
+$ticketId = $data.TicketId
+$message = $data.Message
+$internalNote = $data.Internal
+$securityKey = $data.SecurityKey
 
-    # Debugging output
-    Write-Host "API URL: $apiUrl"
-
-    # Create the note serviceObject
-    $notePayload = @{
-        ticketId = $TicketId
-        text = $Text
-        detailDescriptionFlag = $true
-        internalAnalysisFlag = $Internal
-        #resolutionFlag = $false
-        #customerUpdatedFlag = $false 
-    } | ConvertTo-Json
-
-    # Debugging output
-    Write-Host "Payload: $notePayload"
-    
-    # Set up the authentication headers
-    $authHeader = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey"))
-    $headers = @{
-        "Authorization" = $authHeader
-        "Content-Type" = "application/json"
-        "clientId" = $ClientId
-        "Accept" = "application/vnd.connectwise.com+json; version=v2024_1"
+if (-not $ticketId -or -not $message) {
+    return @{
+        statusCode = [HttpStatusCode]::BadRequest
+        body = "Please pass a valid TicketId and Message in the request body"
     }
-
-    # Debugging output
-    Write-Host "Headers: $headers"
-    Write-Host "Authorization Header: $authHeader"
-
-    # Make the API request
-    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
-
-    Write-Host $result
-    return $result
 }
 
-$TicketId = $Request.Body.TicketId
-$Text = $Request.Body.Message
-$Internal = $Request.Body.Internal
-$SecurityKey = $env:SecurityKey
-
-if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
-    Write-Host "Invalid security key"
-    break;
+# Prepare the note object
+$note = @{
+    ticketId = $ticketId
+    text = $message
+    internalAnalysisFlag = $internalNote
 }
 
-if (-Not $TicketId) {
-    Write-Host "Missing ticket number"
-    break;
+# Convert the note object to JSON
+$json = $note | ConvertTo-Json
+
+# Set up the API request
+$apiUrl = "${env:ConnectWisePsa_ApiBaseUrl}/service/tickets/$ticketId/notes"
+$authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:ConnectWisePsa_ApiCompanyId}+${env:ConnectWisePsa_ApiPublicKey}:${env:ConnectWisePsa_ApiPrivateKey}"))
+$headers = @{
+    "Authorization" = "Basic $authHeader"
+    "Accept" = "application/vnd.connectwise.com+json; version=2019.1"
+    "Content-Type" = "application/json"
 }
-if (-Not $Text) {
-    Write-Host "Missing ticket text"
-    break;
+
+# Send the API request
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $json
+
+if ($response.StatusCode -eq 200) {
+    return @{
+        statusCode = [HttpStatusCode]::OK
+        body = "Note created successfully"
+    }
+} else {
+    return @{
+        statusCode = [HttpStatusCode]::BadRequest
+        body = "Failed to create note"
+    }
 }
-if (-Not $Internal) {
-    $internal = $false
-}
-
-Write-Host "TicketId: $TicketId"
-Write-Host "Text: $Text"
-Write-Host "Internal: $Internal"
-
-$result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
-    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
-    -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
-    -ClientId $env:ConnectWisePsa_ApiClientId `
-    -TicketId $TicketId `
-    -Text $Text `
-    -Internal $Internal
-
-Write-Host $result.Message
-
-$body = @{
-    response = ($result | ConvertTo-Json);
-} 
-
-Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-    StatusCode = [HttpStatusCode]::OK
-    Body = $body
-    ContentType = "application/json"
-})
