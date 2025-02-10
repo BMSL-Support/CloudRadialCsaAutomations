@@ -42,7 +42,6 @@
     JSON structure of the response from the ConnectWise API
 
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -60,30 +59,37 @@ function Add-ConnectWiseTicketNote {
 
     # Construct the API endpoint for adding a note
     $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
-    write-host "apiUrl = $apiUrl"
-    # Create the note serviceObject
+    Write-Host "API URL: $apiUrl"
+
+    # Create the note payload
     $notePayload = @{
         ticketId = $TicketId
         text = $Text
         detailDescriptionFlag = $true
         internalAnalysisFlag = $Internal
-        #resolutionFlag = $false
-        #customerUpdatedFlag = $false 
     } | ConvertTo-Json
-    write-host "notePayload = $notePayload"
+    Write-Host "Note Payload: $notePayload"
+
     # Set up the authentication headers
-    $authkey = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey:$env:ConnectWisePsa_ApiPrivateKey"))
     $headers = @{
-        "Authorization" = "Basic " + "$authkey"
+        "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
         "Accept" = "application/vnd.connectwise.com+json; version=v2024.1"
         "clientId" = $ClientId
     }
-    write-host "headers = $headers"
+    Write-Host "Headers: $($headers | ConvertTo-Json)"
+
     # Make the API request to add the note
-    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
-    Write-Host $result
-    return $result
+    try {
+        $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
+        Write-Host "API Response: $($result | ConvertTo-Json)"
+        return $result
+    } catch {
+        Write-Host "Error: $($_.Exception.Message)"
+        Write-Host "StatusCode: $($_.Exception.Response.StatusCode)"
+        Write-Host "Response: $($_.Exception.Response.Content.ReadAsStringAsync().Result)"
+        throw $_.Exception
+    }
 }
 
 $TicketId = $Request.Body.TicketId
@@ -105,7 +111,7 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $internal = $false
+    $Internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
@@ -120,8 +126,7 @@ $result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseU
     -Text $Text `
     -Internal $Internal
 
-Write-Host $result.Message
- write-host "result = $result"
+Write-Host "Result: $($result | ConvertTo-Json)"
 
 $body = @{
     response = ($result | ConvertTo-Json);
