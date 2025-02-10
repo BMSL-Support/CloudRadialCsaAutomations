@@ -83,7 +83,7 @@ $note = @{
 $json = $note | ConvertTo-Json
 
 # Set up the API request
-$apiUrl = "${env:ConnectWisePsa_ApiBaseUrl}/service/tickets/$ticketId/notes"
+$apiUrl = "${env:ConnectWisePsa_ApiBaseUrl}/v4_6_release/apis/3.0/service/tickets/$ticketId/notes"
 $authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:ConnectWisePsa_ApiCompanyId}+${env:ConnectWisePsa_ApiPublicKey}:${env:ConnectWisePsa_ApiPrivateKey}"))
 $headers = @{
     "Authorization" = "Basic $authHeader"
