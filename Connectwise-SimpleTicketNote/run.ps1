@@ -54,7 +54,6 @@ $data = $requestBody | ConvertFrom-Json
 $ticketId = $data.TicketId
 $message = $data.Message
 $internalNote = $data.Internal
-$securityKey = $data.SecurityKey
 
 if (-not $ticketId -or -not $message) {
     return @{
@@ -65,7 +64,6 @@ if (-not $ticketId -or -not $message) {
 
 # Prepare the note object
 $note = @{
-    ticketId = $ticketId
     text = $message
     internalAnalysisFlag = $internalNote
 }
