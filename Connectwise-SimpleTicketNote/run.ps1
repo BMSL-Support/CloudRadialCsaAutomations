@@ -87,7 +87,7 @@ $apiUrl = "${env:ConnectWisePsa_ApiBaseUrl}/v4_6_release/apis/3.0/service/ticket
 $authHeader = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${env:ConnectWisePsa_ApiCompanyId}+${env:ConnectWisePsa_ApiPublicKey}:${env:ConnectWisePsa_ApiPrivateKey}"))
 $headers = @{
     "Authorization" = "Basic $authHeader"
-    "Accept" = "application/vnd.connectwise.com+json; version=2019.1"
+    "Accept" = "*/*"
     "Content-Type" = "application/json"
 }
 
