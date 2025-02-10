@@ -77,7 +77,7 @@ if (-not $ApiBaseUrl -or -not $ApiCompanyId -or -not $ApiPublicKey -or -not $Api
 }
 
 # Initialize ConnectWise API Client
-$modulePath = "C:\path\to\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1" # Adjust this path
+$modulePath = "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1" # Adjust this path
 Import-Module $modulePath
 
 # Build the ticket note object
