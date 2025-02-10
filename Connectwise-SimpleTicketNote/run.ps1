@@ -75,6 +75,7 @@ if (-not $ticketId -or -not $message) {
 
 # Prepare the note object
 $note = @{
+    ticketId = $ticketId
     text = $message
     internalAnalysisFlag = $internalNote
 }
