@@ -93,7 +93,7 @@ $notePayload = @{
     internalAnalysisFlag = $Internal
 }
 
-$result = New-CWMTicketNote $notePayload
+$result = New-CWMTicketNote -ticketId $TicketId -text $Text -detailDescriptionFlag $true -internalFlag $Internal -resolutionFlag $false
 
 Write-Host $result.Message
 
