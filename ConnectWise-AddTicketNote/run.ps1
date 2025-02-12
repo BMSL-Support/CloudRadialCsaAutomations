@@ -45,7 +45,7 @@
 
 using namespace System.Net
 
-import-module ConnectWiseManageAPI
+Import-Module "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1"
     
     # Create the CWConnection
     $Connection = @{
