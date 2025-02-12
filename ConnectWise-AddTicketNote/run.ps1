@@ -82,7 +82,8 @@ function Add-ConnectWiseTicketNote {
     # Make the API request to add the note
     try {
         $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload -ErrorAction Stop
-        Write-Host "API Response: $($response | ConvertTo-Json)"
+        $responseContent = $response | ConvertTo-Json
+        Write-Host "API Response: $responseContent"
         return $response
     } catch {
         Write-Host "Error: $($_.Exception.Message)"
