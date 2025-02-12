@@ -43,30 +43,23 @@
 
 #>
 
+param($Request, $TriggerMetadata)
+
 using namespace System.Net
 
 Import-Module "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1"
-    
-    # Create the CWConnection
-    $Connection = @{
+
+# Create the CWConnection
+$Connection = @{
     Server = $env:ConnectWisePsa_ApiBaseUrl
     Company = $env:ConnectWisePsa_ApiCompanyId
     PubKey = $env:ConnectWisePsa_ApiPublicKey
     PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
     ClientID = $env:ConnectWisePsa_ApiClientId
-    }
-    Connect-CWM @Connection
+}
+Connect-CWM @Connection
 
-    # Create the note serviceObject
-    $notePayload = @{
-        ticketId = $TicketId
-        text = $Text
-        detailDescriptionFlag = $true
-        internalAnalysisFlag = $Internal
-        #resolutionFlag = $false
-        #customerUpdatedFlag = $false 
-    }
-    
+# Extract data from the request body
 $TicketId = $Request.Body.TicketId
 $Text = $Request.Body.Message
 $Internal = $Request.Body.Internal
@@ -86,12 +79,20 @@ if (-Not $Text) {
     break;
 }
 if (-Not $Internal) {
-    $internal = $false
+    $Internal = $false
 }
 
 Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
+
+# Create the note serviceObject
+$notePayload = @{
+    ticketId = $TicketId
+    text = $Text
+    detailDescriptionFlag = $true
+    internalAnalysisFlag = $Internal
+}
 
 $result = New-CWMTicketNote $notePayload
 
