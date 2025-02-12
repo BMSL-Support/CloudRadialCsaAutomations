@@ -19,7 +19,7 @@
                     
     The function requires the following modules to be installed:
                    
-    None        
+    ConnectWiseManageAPI     
 
 .INPUTS
 
@@ -44,22 +44,16 @@
 #>
 
 using namespace System.Net
-
-param($Request, $TriggerMetadata)
-
-function Add-ConnectWiseTicketNote {
-    param (
-        [string]$ConnectWiseUrl,
-        [string]$PublicKey,
-        [string]$PrivateKey,
-        [string]$ClientId,
-        [string]$TicketId,
-        [string]$Text,
-        [boolean]$Internal = $false
-    )
-
-    # Construct the API endpoint for adding a note
-    $apiUrl = "$ConnectWiseUrl/v4_6_release/apis/3.0/service/tickets/$TicketId/notes"
+    
+    # Create the CWConnection
+    $Connection = @{
+    Server = $env:ConnectWisePsa_ApiBaseUrl
+    Company = $env:ConnectWisePsa_ApiCompanyId
+    PubKey = $env:ConnectWisePsa_ApiPublicKey
+    PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
+    ClientID = $env:ConnectWisePsa_ApiClientId
+    }
+    Connect-CWM @Connection
 
     # Create the note serviceObject
     $notePayload = @{
@@ -69,23 +63,8 @@ function Add-ConnectWiseTicketNote {
         internalAnalysisFlag = $Internal
         #resolutionFlag = $false
         #customerUpdatedFlag = $false 
-    } | ConvertTo-Json
-    
-    # Set up the authentication headers
-    $authHeader = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
-    $headers = @{
-        "Authorization" = $authHeader
-        "Content-Type" = "application/json"
-        "Accept" = "application/vnd.connectwise.com+json; version=v2024.1"
-        "clientId" = $ClientId
     }
-
-    # Make the API request to add the note
-    $result = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $notePayload
-    Write-Host $result
-    return $result
-}
-
+    
 $TicketId = $Request.Body.TicketId
 $Text = $Request.Body.Message
 $Internal = $Request.Body.Internal
@@ -112,13 +91,7 @@ Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
 
-$result = Add-ConnectWiseTicketNote -ConnectWiseUrl $env:ConnectWisePsa_ApiBaseUrl `
-    -PublicKey "$env:ConnectWisePsa_ApiCompanyId+$env:ConnectWisePsa_ApiPublicKey" `
-    -PrivateKey $env:ConnectWisePsa_ApiPrivateKey `
-    -ClientId $env:ConnectWisePsa_ApiClientId `
-    -TicketId $TicketId `
-    -Text $Text `
-    -Internal $Internal
+$result = New-CWMTicketNote $notePayload
 
 Write-Host $result.Message
 
