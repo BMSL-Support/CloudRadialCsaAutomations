@@ -99,12 +99,12 @@ Write-Host $result.Message
 
 $body = @{
     response = ($result | ConvertTo-Json);
-} 
+}
+
+Disconnect-CWM
 
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
     Body = $body
     ContentType = "application/json"
-}
-Disconnect-CWM
-)
+})
