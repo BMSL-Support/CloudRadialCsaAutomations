@@ -42,13 +42,12 @@
     JSON structure of the response from the ConnectWise API
 
 #>
+using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-using namespace System.Net
-
 Import-Module "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1"
-
+    
 # Create the CWConnection
 $Connection = @{
     Server = $env:ConnectWisePsa_ApiBaseUrl
