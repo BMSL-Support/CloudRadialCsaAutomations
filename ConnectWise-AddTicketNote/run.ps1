@@ -105,4 +105,6 @@ Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
     Body = $body
     ContentType = "application/json"
-})
+}
+Disconnect-CWM
+)
