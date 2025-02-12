@@ -178,7 +178,8 @@ $SecretId = $env:Ms365_AuthSecretId
 
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
-Write-Host "DEBUG: Final message: $message"
+# Updated final message output
+Write-Host "INFORMATION: DEBUG: Final message: $message"
 
 $body = @{
     Message      = [string]$message
