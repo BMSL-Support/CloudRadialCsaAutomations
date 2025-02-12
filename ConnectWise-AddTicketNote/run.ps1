@@ -44,6 +44,8 @@
 #>
 
 using namespace System.Net
+
+import-module ConnectWiseManageAPI
     
     # Create the CWConnection
     $Connection = @{
