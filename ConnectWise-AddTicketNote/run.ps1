@@ -61,7 +61,7 @@ Connect-CWM @Connection
 # Extract data from the request body
 $TicketId = $Request.Body.TicketId
 $Text = $Request.Body.Message
-$Internal = $Request.Body.Internal
+$Internal = [bool]$Request.Body.Internal
 $SecurityKey = $env:SecurityKey
 
 if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
@@ -77,9 +77,6 @@ if (-Not $Text) {
     Write-Host "Missing ticket text"
     break;
 }
-if (-Not $Internal) {
-    $Internal = $false
-}
 
 Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
@@ -93,18 +90,19 @@ $notePayload = @{
     internalAnalysisFlag = $Internal
 }
 
-$result = New-CWMTicketNote -ticketId $TicketId -text $Text -detailDescriptionFlag $true -internalFlag $Internal -resolutionFlag $false
+$result = New-CWMTicketNote -ticketId $TicketId -text $Text -detailDescriptionFlag $true -internalFlag $Internal -resolutionFlag $false -AllowInsecureRedirect
 
 Write-Host $result.Message
 
 $body = @{
     response = ($result | ConvertTo-Json);
-}
-
-Disconnect-CWM
+} 
 
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
     Body = $body
     ContentType = "application/json"
 })
+
+# Disconnect from ConnectWise
+Disconnect-CWM
