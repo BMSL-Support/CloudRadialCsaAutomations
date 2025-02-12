@@ -75,6 +75,7 @@ function Add-ConnectWiseTicketNote {
     $headers = @{
         "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${PublicKey}:${PrivateKey}"))
         "Content-Type" = "application/json"
+        "Accept" = "application/vnd.connectwise.com+json; version=v2024.1"
         "clientId" = $ClientId
     }
 
