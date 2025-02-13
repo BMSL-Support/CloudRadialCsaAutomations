@@ -150,6 +150,9 @@ $SecretId = $env:Ms365_AuthSecretId
 
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
+# Clean up the message to remove unwanted text
+$message = $message -replace 'Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser', ''
+
 Write-Log -Message "Final message: $message" -Level "INFO"
 
 $body = @{
