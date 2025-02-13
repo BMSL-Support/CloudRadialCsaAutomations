@@ -61,30 +61,39 @@ function Add-UserLicenses {
 
         $licensesToAdd = @()
         $licensesNotAvailable = @()
+        $licensesAlreadyAssigned = @()
         $licensesPrettyNamesToAdd = @()
         $licensesPrettyNamesNotAvailable = @()
+        $licensesPrettyNamesAlreadyAssigned = @()
+
+        $user = Get-MgUser -UserId $UserPrincipalName
+        $assignedLicenses = $user.AssignedLicenses.SkuId
 
         foreach ($licenseType in $RequestedLicense) {
             $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
-            $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
-            if ($license) {
-                if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
-                    $licensesToAdd += $skuId
-                    $licensesPrettyNamesToAdd += $licenseType
+            if ($assignedLicenses -contains $skuId) {
+                $licensesAlreadyAssigned += $skuId
+                $licensesPrettyNamesAlreadyAssigned += $licenseType
+            } else {
+                $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
+                if ($license) {
+                    if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
+                        $licensesToAdd += $skuId
+                        $licensesPrettyNamesToAdd += $licenseType
+                    } else {
+                        $licensesNotAvailable += $licenseType
+                        $licensesPrettyNamesNotAvailable += $licenseType
+                    }
                 } else {
                     $licensesNotAvailable += $licenseType
                     $licensesPrettyNamesNotAvailable += $licenseType
                 }
-            } else {
-                $licensesNotAvailable += $licenseType
-                $licensesPrettyNamesNotAvailable += $licenseType
             }
         }
 
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
-            $user = Get-MgUser -UserId $UserPrincipalName
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
@@ -95,6 +104,10 @@ function Add-UserLicenses {
 
         if ($licensesNotAvailable.Count -gt 0) {
             $message += " Licenses not available: $($licensesPrettyNamesNotAvailable -join ', ')."
+        }
+
+        if ($licensesAlreadyAssigned.Count -gt 0) {
+            $message += " Licenses already assigned: $($licensesPrettyNamesAlreadyAssigned -join ', ')."
         }
 
     } catch {
