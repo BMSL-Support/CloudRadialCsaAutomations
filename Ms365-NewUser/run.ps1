@@ -112,7 +112,28 @@ try {
     }
 
     # Create the new user
-    $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -MailNickname $mailNickname -JobTitle $JobTitle -BusinessPhones $OfficePhone -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -UsageLocation "GB" -AccountEnabled
+    $newUserParams = @{
+        UserPrincipalName = $NewUserEmail
+        DisplayName       = $NewUserDisplayName
+        GivenName         = $NewUserFirstName
+        Surname           = $NewUserLastName
+        MailNickname      = $mailNickname
+        PasswordProfile   = @{ Password = $Password; ForceChangePasswordNextSignIn = $true }
+        UsageLocation     = "GB"
+        AccountEnabled    = $true
+    }
+
+    if ($JobTitle) {
+        $newUserParams.JobTitle = $JobTitle
+    }
+    if ($OfficePhone) {
+        $newUserParams.BusinessPhones = $OfficePhone
+    }
+    if ($MobilePhone) {
+        $newUserParams.MobilePhone = $MobilePhone
+    }
+
+    $newUser = New-MgUser @newUserParams
 
     if ($newUser) {
         $message = "New user $NewUserDisplayName created successfully.`r `rUsername: $NewUserEmail `rPassword: $Password"
