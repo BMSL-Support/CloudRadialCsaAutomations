@@ -33,7 +33,6 @@
     TenantId - Tenant Id of the Microsoft 365 tenant
     RequestedLicense - Array of license types
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -99,6 +98,17 @@ try {
 
     # Extract the mailNickname from the NewUserEmail
     $mailNickname = $NewUserEmail.Split("@")[0]
+
+    # Check and ignore fields if not specified or contain certain values
+    if ($JobTitle -eq "@NUsersJobTitle" -or -not $JobTitle) {
+        $JobTitle = $null
+    }
+    if ($OfficePhone -eq "@NUsersOfficePhone" -or -not $OfficePhone) {
+        $OfficePhone = $null
+    }
+    if ($MobilePhone -eq "@NUsersMobilePhone" -or -not $MobilePhone) {
+        $MobilePhone = $null
+    }
 
     # Create the new user
     $newUser = New-MgUser -UserPrincipalName $NewUserEmail -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -MailNickname $mailNickname -JobTitle $JobTitle -BusinessPhones @($OfficePhone) -MobilePhone $MobilePhone -PasswordProfile @{ Password = $Password; ForceChangePasswordNextSignIn = $true } -UsageLocation "GB" -AccountEnabled
