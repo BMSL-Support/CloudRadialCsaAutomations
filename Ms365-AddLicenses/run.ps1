@@ -1,33 +1,21 @@
 <# 
-
 .SYNOPSIS
-
     This function adds Microsoft 365 licenses to an existing user based on the "RequestedLicense".
-
 .DESCRIPTION
-
     This function adds Microsoft 365 licenses to an existing user based on the "RequestedLicense".
-    
     The function requires the following environment variables to be set:
-    
     Ms365_AuthAppId - Application Id of the Azure AD application
     Ms365_AuthSecretId - Secret Id of the Azure AD application
     Ms365_TenantId - Tenant Id of the Azure AD application
     SecurityKey - Optional, use this as an additional step to secure the function
-
     The function requires the following modules to be installed:
-    
     Microsoft.Graph     
-
 .INPUTS
-
     UserPrincipalName - string value of the user's principal name
     TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
     RequestedLicense - array of license types to be assigned to the user
     TicketId - string value of the ticket id
-
     JSON Structure
-
     {
         "UserPrincipalName": "user@example.com",
         "TenantId": "12345678-1234-1234-1234-123456789012",
@@ -37,16 +25,12 @@
         ],
         "TicketId": "TICKET12345"
     }
-
 .OUTPUTS
-
     JSON response with the following fields:
-
     Message - Descriptive string of result
     TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
-
 #>
 
 using namespace System.Net
@@ -55,93 +39,72 @@ param($Request, $TriggerMetadata)
 
 function Add-UserLicenses {
     param (
-        [string]$UserPrincipalName,
-        [string]$AppId,
-        [string]$SecretId,
-        [string]$TenantId,
-        [array]$RequestedLicense,
-        [string]$TicketId
+        [Parameter(Mandatory=$true)][string]$UserPrincipalName,
+        [Parameter(Mandatory=$true)][string]$AppId,
+        [Parameter(Mandatory=$true)][string]$SecretId,
+        [Parameter(Mandatory=$true)][string]$TenantId,
+        [Parameter(Mandatory=$true)][array]$RequestedLicense,
+        [Parameter(Mandatory=$true)][string]$TicketId
     )
 
-    # Check for required inputs
-    if (-not $UserPrincipalName) {
-        Write-Host "ERROR: UserPrincipalName is required."
-        return
-    }
-    if (-not $TenantId) {
-        Write-Host "ERROR: TenantId is required."
-        return
-    }
-    if (-not $RequestedLicense) {
-        Write-Host "ERROR: RequestedLicense is required."
-        return
-    }
-    if (-not $TicketId) {
-        Write-Host "ERROR: TicketId is required."
-        return
-    }
+    try {
+        # Construct the basic authentication header
+        $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
+        $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
+        Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
 
-    # Construct the basic authentication header
-    $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
-    $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
-    Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
+        # Get all licenses in the tenant
+        $licenses = Get-MgSubscribedSku
+        Write-Log -Message "Retrieved licenses: $($licenses | Out-String)" -Level "DEBUG"
 
-    # Get all licenses in the tenant
-    $licenses = Get-MgSubscribedSku
-    Write-Host "DEBUG: Retrieved licenses: $($licenses | Out-String)"
+        # Get license types with pretty names
+        $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+        Write-Log -Message "Retrieved license types: $($licenseTypes | Out-String)" -Level "DEBUG"
 
-    # Get license types with pretty names
-    $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
-    Write-Host "DEBUG: Retrieved license types: $($licenseTypes | Out-String)"
+        $licensesToAdd = @()
+        $licensesNotAvailable = @()
+        $licensesPrettyNamesToAdd = @()
+        $licensesPrettyNamesNotAvailable = @()
 
-    $licensesToAdd = @()
-    $licensesNotAvailable = @()
-    $licensesPrettyNamesToAdd = @()
-    $licensesPrettyNamesNotAvailable = @()
-
-    foreach ($licenseType in $RequestedLicense) {
-        $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
-        $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
-        if ($license) {
-            if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
-                $licensesToAdd += $skuId
-                $licensesPrettyNamesToAdd += $licenseType
+        foreach ($licenseType in $RequestedLicense) {
+            $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
+            $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
+            if ($license) {
+                if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
+                    $licensesToAdd += $skuId
+                    $licensesPrettyNamesToAdd += $licenseType
+                } else {
+                    $licensesNotAvailable += $licenseType
+                    $licensesPrettyNamesNotAvailable += $licenseType
+                }
             } else {
                 $licensesNotAvailable += $licenseType
                 $licensesPrettyNamesNotAvailable += $licenseType
             }
-        } else {
-            $licensesNotAvailable += $licenseType
-            $licensesPrettyNamesNotAvailable += $licenseType
         }
-    }
 
-    Write-Host "DEBUG: Licenses to add: $($licensesToAdd -join ', ')"
-    Write-Host "DEBUG: Licenses not available: $($licensesNotAvailable -join ', ')"
+        Write-Log -Message "Licenses to add: $($licensesToAdd -join ', ')" -Level "DEBUG"
+        Write-Log -Message "Licenses not available: $($licensesNotAvailable -join ', ')" -Level "DEBUG"
 
-    try {
-        # Constructing the message for licenses added
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
             $user = Get-MgUser -UserId $UserPrincipalName
-            Write-Host "DEBUG: Retrieved user: $($user | Out-String)"
+            Write-Log -Message "Retrieved user: $($user | Out-String)" -Level "DEBUG"
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
-            # Join the license names into a single string
             $message += "Added licenses: $($licensesPrettyNamesToAdd -join ', ')."
         } else {
             $message += "No licenses available to add."
         }
 
-        # Add message for licenses not available
         if ($licensesNotAvailable.Count -gt 0) {
             $message += " Licenses not available: $($licensesPrettyNamesNotAvailable -join ', ')."
         }
 
     } catch {
-        Write-Host "ERROR: $_"
+        Write-Log -Message "An error occurred: $_" -Level "ERROR"
         $message = "An error occurred while adding licenses: $($_ | Out-String)"
     }
 
@@ -162,11 +125,20 @@ function Get-LicenseTypes {
     return $licenseTypes
 }
 
+function Write-Log {
+    param (
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "[$timestamp] [$Level] $Message"
+}
+
 # Ensure the UserPrincipalName exists in the body
 if ($Request.Body.UserPrincipalName) {
     $UserPrincipalName = $Request.Body.UserPrincipalName
 } else {
-    Write-Host "ERROR: UserPrincipalName is missing from the request body."
+    Write-Log -Message "UserPrincipalName is missing from the request body." -Level "ERROR"
     exit
 }
 
@@ -178,8 +150,7 @@ $SecretId = $env:Ms365_AuthSecretId
 
 $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
 
-# Updated final message output
-Write-Host "INFORMATION: DEBUG: Final message: $message"
+Write-Log -Message "Final message: $message" -Level "INFO"
 
 $body = @{
     Message      = [string]$message
@@ -188,7 +159,6 @@ $body = @{
     ResultStatus = "Success"
 }
 
-# Associate values to output bindings by calling 'Push-OutputBinding' to send the response
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode  = [HttpStatusCode]::OK
         Body        = $body
