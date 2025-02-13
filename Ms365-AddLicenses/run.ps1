@@ -55,9 +55,11 @@ function Add-UserLicenses {
 
         # Get all licenses in the tenant
         $licenses = Get-MgSubscribedSku
+        Write-Host "DEBUG: Retrieved licenses: $($licenses | Out-String)"
 
         # Get license types with pretty names
         $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+        Write-Host "DEBUG: Retrieved license types: $($licenseTypes | Out-String)"
 
         $licensesToAdd = @()
         $licensesNotAvailable = @()
@@ -67,24 +69,31 @@ function Add-UserLicenses {
         $licensesPrettyNamesAlreadyAssigned = @()
 
         $user = Get-MgUser -UserId $UserPrincipalName
+        Write-Host "DEBUG: Retrieved user: $($user | Out-String)"
         $assignedLicenses = $user.AssignedLicenses | ForEach-Object { $_.SkuId }
+        Write-Host "DEBUG: Assigned licenses: $($assignedLicenses -join ', ')"
 
         foreach ($licenseType in $RequestedLicense) {
             $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
+            Write-Host "DEBUG: Processing license type: $licenseType with SkuId: $skuId"
             if ($assignedLicenses -contains $skuId) {
+                Write-Host "DEBUG: License $licenseType is already assigned."
                 $licensesAlreadyAssigned += $skuId
                 $licensesPrettyNamesAlreadyAssigned += $licenseType
             } else {
                 $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
                 if ($license) {
                     if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
+                        Write-Host "DEBUG: License $licenseType is available to add."
                         $licensesToAdd += $skuId
                         $licensesPrettyNamesToAdd += $licenseType
                     } else {
+                        Write-Host "DEBUG: License $licenseType is not available."
                         $licensesNotAvailable += $licenseType
                         $licensesPrettyNamesNotAvailable += $licenseType
                     }
                 } else {
+                    Write-Host "DEBUG: License $licenseType is not found in tenant."
                     $licensesNotAvailable += $licenseType
                     $licensesPrettyNamesNotAvailable += $licenseType
                 }
@@ -111,6 +120,7 @@ function Add-UserLicenses {
         }
 
     } catch {
+        Write-Host "ERROR: $_"
         $message = "An error occurred while adding licenses: $($_ | Out-String)"
     }
 
@@ -149,6 +159,8 @@ $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId 
 
 # Clean up the message to remove unwanted text
 $message = $message -replace 'Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser', ''
+
+Write-Host "INFORMATION: Final message: $message"
 
 $body = @{
     Message      = [string]$message
