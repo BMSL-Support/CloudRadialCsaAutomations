@@ -55,11 +55,9 @@ function Add-UserLicenses {
 
         # Get all licenses in the tenant
         $licenses = Get-MgSubscribedSku
-        Write-Log -Message "Retrieved licenses: $($licenses | Out-String)" -Level "DEBUG"
 
         # Get license types with pretty names
         $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
-        Write-Log -Message "Retrieved license types: $($licenseTypes | Out-String)" -Level "DEBUG"
 
         $licensesToAdd = @()
         $licensesNotAvailable = @()
@@ -83,14 +81,10 @@ function Add-UserLicenses {
             }
         }
 
-        Write-Log -Message "Licenses to add: $($licensesToAdd -join ', ')" -Level "DEBUG"
-        Write-Log -Message "Licenses not available: $($licensesNotAvailable -join ', ')" -Level "DEBUG"
-
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
             $user = Get-MgUser -UserId $UserPrincipalName
-            Write-Log -Message "Retrieved user: $($user.DisplayName)" -Level "DEBUG"  # Log only the DisplayName for debugging
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
@@ -104,7 +98,6 @@ function Add-UserLicenses {
         }
 
     } catch {
-        Write-Log -Message "An error occurred: $_" -Level "ERROR"
         $message = "An error occurred while adding licenses: $($_ | Out-String)"
     }
 
@@ -125,20 +118,11 @@ function Get-LicenseTypes {
     return $licenseTypes
 }
 
-function Write-Log {
-    param (
-        [string]$Message,
-        [string]$Level = "INFO"
-    )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "[$timestamp] [$Level] $Message"
-}
-
 # Ensure the UserPrincipalName exists in the body
 if ($Request.Body.UserPrincipalName) {
     $UserPrincipalName = $Request.Body.UserPrincipalName
 } else {
-    Write-Log -Message "UserPrincipalName is missing from the request body." -Level "ERROR"
+    Write-Host "ERROR: UserPrincipalName is missing from the request body."
     exit
 }
 
@@ -152,8 +136,6 @@ $message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId 
 
 # Clean up the message to remove unwanted text
 $message = $message -replace 'Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser', ''
-
-Write-Log -Message "Final message: $message" -Level "INFO"
 
 $body = @{
     Message      = [string]$message
