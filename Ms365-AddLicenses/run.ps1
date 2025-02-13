@@ -67,7 +67,7 @@ function Add-UserLicenses {
         $licensesPrettyNamesAlreadyAssigned = @()
 
         $user = Get-MgUser -UserId $UserPrincipalName
-        $assignedLicenses = $user.AssignedLicenses.SkuId
+        $assignedLicenses = $user.AssignedLicenses | ForEach-Object { $_.SkuId }
 
         foreach ($licenseType in $RequestedLicense) {
             $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
