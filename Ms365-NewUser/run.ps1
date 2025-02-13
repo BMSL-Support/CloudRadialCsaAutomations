@@ -1,38 +1,3 @@
-<# 
-.SYNOPSIS
-    This function creates a new user in the tenant.
-.DESCRIPTION
-    This function creates a new user in the tenant.
-    The function requires the following environment variables to be set:
-    Ms365_AuthAppId - Application Id of the service principal
-    Ms365_AuthSecretId - Secret Id of the service principal
-    Ms365_TenantId - Tenant Id of the Microsoft 365 tenant
-    SecurityKey - Optional, use this as an additional step to secure the function
-    The function requires the following modules to be installed:
-    Microsoft.Graph
-.INPUTS
-    JSON Structure
-    {
-        "TicketId": "123456",
-        "TenantId": "12345678-1234-1234-123456789012",
-        "NewUserFirstName": "John",
-        "NewUserLastName": "Doe",
-        "NewUserEmail": "john.doe@example.com",
-        "JobTitle": "Software Engineer",
-        "OfficePhone": "+1234567890",
-        "MobilePhone": "+0987654321",
-        "LicenseTypes": ["ENTERPRISEPACK", "STANDARDPACK"]
-    }
-.OUTPUTS
-    JSON response with the following fields:
-    Message - Descriptive string of result
-    TicketId - TicketId passed in Parameters
-    ResultCode - 200 for success, 500 for failure
-    ResultStatus - "Success" or "Failure"
-    UserPrincipalName - UPN of the new user created
-    TenantId - Tenant Id of the Microsoft 365 tenant
-    RequestedLicense - Array of license types
-#>
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
