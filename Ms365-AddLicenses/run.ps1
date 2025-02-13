@@ -90,7 +90,7 @@ function Add-UserLicenses {
 
         if ($licensesToAdd.Count -gt 0) {
             $user = Get-MgUser -UserId $UserPrincipalName
-            Write-Log -Message "Retrieved user: $($user | Out-String)" -Level "DEBUG"
+            Write-Log -Message "Retrieved user: $($user.DisplayName)" -Level "DEBUG"  # Log only the DisplayName for debugging
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
