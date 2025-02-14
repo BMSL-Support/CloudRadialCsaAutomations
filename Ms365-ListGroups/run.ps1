@@ -59,7 +59,6 @@ function Set-CloudRadialToken {
         [string]$GroupList
     )
 
-    # Construct the basic authentication header
     $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${AppId}:${SecretId}"))
     $headers = @{
         "Authorization" = "Basic $base64AuthInfo"
@@ -74,7 +73,6 @@ function Set-CloudRadialToken {
 
     $bodyJson = $body | ConvertTo-Json
 
-    # Replace the following URL with the actual REST API endpoint
     $apiUrl = "https://api.us.cloudradial.com/api/beta/token"
 
     $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Body $bodyJson -Method Post
@@ -107,19 +105,33 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
+# Check connection
+if (-Not (Get-MgUser -UserId 'me')) {
+    Write-Host "Failed to connect to Microsoft Graph"
+    break;
+}
+
 # Get all security groups in the tenant, excluding dynamic groups and those with administrative rights
 $groups = Get-MgGroup -Filter "groupTypes/Any(x:x eq 'Unified') and securityEnabled eq true"
+
+if (-Not $groups) {
+    Write-Host "No groups found"
+    break;
+}
 
 $filteredGroups = $groups | Where-Object {
     $_.GroupTypes -notcontains 'DynamicMembership' -and
     $_.DisplayName -notcontains 'Admin|Administrator|Owner|Root'
 }
 
-# Extract group names
+if (-Not $filteredGroups) {
+    Write-Host "No groups matched the filter criteria"
+    break;
+}
+
 $groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName 
 $groupNames = $groupNames | Sort-Object
 
-# Convert the array of group names to a comma-separated string
 $groupNamesString = $groupNames -join ","
 
 Set-CloudRadialToken -Token "CompanyM365SecurityGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
@@ -135,7 +147,6 @@ $body = @{
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
 } 
 
-# Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode  = [HttpStatusCode]::OK
         Body        = $body
