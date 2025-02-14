@@ -112,7 +112,7 @@ $groups = Get-MgGroup -Filter "groupTypes/Any(x:x eq 'Unified') and securityEnab
 
 $filteredGroups = $groups | Where-Object {
     $_.GroupTypes -notcontains 'DynamicMembership' -and
-    $_.DisplayName -notmatch 'Admin|Administrator|Owner|Root'
+    $_.DisplayName -notcontains 'Admin|Administrator|Owner|Root'
 }
 
 # Extract group names
