@@ -155,6 +155,7 @@ $body = @{
     UserPrincipalName = $UserPrincipalName
     TenantId          = $TenantId
     RequestedLicense  = $LicenseTypes
+    Internal          = $true
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
