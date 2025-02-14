@@ -109,8 +109,11 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 # Get all security groups in the tenant
 $securityGroups = Get-MgGroup -Filter "securityEnabled eq true" -All
 
-# Extract security group names
-$groupNames = $securityGroups | Select-Object -ExpandProperty DisplayName 
+# Filter groups that start with "Security -" or "Data -"
+$filteredGroups = $securityGroups | Where-Object { $_.DisplayName -like "Security -*" -or $_.DisplayName -like "Data -*" }
+
+# Extract group names
+$groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName 
 $groupNames = $groupNames | Sort-Object
 
 # Convert the array of group names to a comma-separated string
