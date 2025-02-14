@@ -2,11 +2,11 @@
 
 .SYNOPSIS
     
-    This function lists all MS Teams in Microsoft 365.
+    This function lists all security groups in Microsoft 365, excluding dynamic groups and those with administrative rights.
 
 .DESCRIPTION
     
-    This function lists all MS Teams in Microsoft 365.
+    This function lists all security groups in Microsoft 365, excluding dynamic groups and those with administrative rights.
     
     The function requires the following environment variables to be set:
     
@@ -29,7 +29,7 @@
 
     JSON response with the following fields:
 
-    Name - The display name of the MS Team
+    Name - The display name of the security group
     TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
@@ -40,7 +40,7 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-Write-Host "ListTeams function triggered."
+Write-Host "ListSecurityGroups function triggered."
 
 $resultCode = 200
 $message = ""
@@ -74,25 +74,30 @@ if ($resultCode -Eq 200) {
 
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId
 
-    $teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')"
+    $groups = Get-MgGroup -Filter "groupTypes/Any(x:x eq 'Unified') and securityEnabled eq true"
 
-    if (-Not $teams) {
-        $message = "No MS Teams found."
+    $filteredGroups = $groups | Where-Object {
+        $_.GroupTypes -notcontains 'DynamicMembership' -and
+        $_.DisplayName -notmatch 'Admin|Administrator|Owner|Root'
+    }
+
+    if (-Not $filteredGroups) {
+        $message = "No security groups found."
         $resultCode = 500
     }
 
-    $teamsList = $teams | ForEach-Object {
+    $groupsList = $filteredGroups | ForEach-Object {
         $_.DisplayName
     }
 
     if ($resultCode -Eq 200) {
-        $message = "Request completed. MS Teams listed successfully."
+        $message = "Request completed. Security groups listed successfully."
     }
 }
 
 $body = @{
-    Message      = $message + $teamsList
-    Teams        = $teamsList
+    Message      = $message + $groupsList
+    Groups       = $groupsList
     TicketId     = $TicketId
     ResultCode   = $resultCode
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
