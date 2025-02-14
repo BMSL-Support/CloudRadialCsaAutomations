@@ -31,6 +31,7 @@
     TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
+    Internal - Boolean value indicating if the operation is internal
 #>
 
 using namespace System.Net
@@ -155,6 +156,7 @@ $body = @{
     TicketId     = $TicketId
     ResultCode   = 200
     ResultStatus = "Success"
+    Internal     = $true
 }
 
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
