@@ -82,14 +82,6 @@ Write-Host "TicketId: $TicketId"
 Write-Host "Text: $Text"
 Write-Host "Internal: $Internal"
 
-# Create the note serviceObject
-$notePayload = @{
-    ticketId = $TicketId
-    text = $Text
-    detailDescriptionFlag = $true
-    internalAnalysisFlag = $Internal
-}
-
 $result = New-CWMTicketNote -ticketId $TicketId -text $Text -detailDescriptionFlag $true -internalFlag $Internal -resolutionFlag $false
 
 Write-Host $result.Message
