@@ -1,35 +1,45 @@
 <# 
 
 .SYNOPSIS
-    
-    This function lists all security groups in Microsoft 365, excluding dynamic groups and those with administrative rights.
+
+    This function is used to update the CompanyM365SecurityGroups token in CloudRadial from a Microsoft 365 tenant.
 
 .DESCRIPTION
     
-    This function lists all security groups in Microsoft 365, excluding dynamic groups and those with administrative rights.
+    This function is used to update the company tokens in CloudRadial from a Microsoft 365 tenant.
     
     The function requires the following environment variables to be set:
     
-    Ms365_AuthAppId - Application Id of the service principal
-    Ms365_AuthSecretId - Secret Id of the service principal
-    Ms365_TenantId - Tenant Id of the Microsoft 365 tenant
+    Ms365_AuthAppId - Application Id of the Azure AD application
+    Ms365_AuthSecretId - Secret Id of the Azure AD application
+    Ms365_TenantId - Tenant Id of the Azure AD application
+    CloudRadialCsa_ApiPublicKey - Public Key of the CloudRadial API
+    CloudRadialCsa_ApiPrivateKey - Private Key of the CloudRadial API
     SecurityKey - Optional, use this as an additional step to secure the function
- 
+
     The function requires the following modules to be installed:
     
-    Microsoft.Graph
-    
+    Microsoft.Graph     
+
 .INPUTS
 
+    CompanyId - numeric company id
     TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
-    TicketId - optional - string value of the ticket id used for transaction tracking
     SecurityKey - Optional, use this as an additional step to secure the function
+
+    JSON Structure
+
+    {
+        "CompanyId": "12"
+        "TenantId": "12345678-1234-1234-1234-123456789012",
+        "SecurityKey", "optional"
+    }
 
 .OUTPUTS
 
     JSON response with the following fields:
 
-    Name - The display name of the security group
+    Message - Descriptive string of result
     TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
@@ -40,13 +50,40 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-Write-Host "ListSecurityGroups function triggered."
+function Set-CloudRadialToken {
+    param (
+        [string]$Token,
+        [string]$AppId,
+        [string]$SecretId,
+        [int]$CompanyId,
+        [string]$GroupList
+    )
 
-$resultCode = 200
-$message = ""
+    # Construct the basic authentication header
+    $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${AppId}:${SecretId}"))
+    $headers = @{
+        "Authorization" = "Basic $base64AuthInfo"
+        "Content-Type" = "application/json"
+    }
 
-$TenantId = $Request.Body.TenantId
-$TicketId = $Request.Body.TicketId
+    $body = @{
+        "companyId" = $CompanyId
+        "token" = "$Token"
+        "value" = "$GroupList"
+    }
+
+    $bodyJson = $body | ConvertTo-Json
+
+    # Replace the following URL with the actual REST API endpoint
+    $apiUrl = "https://api.us.cloudradial.com/api/beta/token"
+
+    $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Body $bodyJson -Method Post
+
+    Write-Host "API response: $($response | ConvertTo-Json -Depth 4)"
+}
+
+$companyId = $Request.Body.CompanyId
+$tenantId = $Request.Body.TenantId
 $SecurityKey = $env:SecurityKey
 
 if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
@@ -54,50 +91,45 @@ if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
     break;
 }
 
-if (-Not $TenantId) {
-    $TenantId = $env:Ms365_TenantId
-}
-else {
-    $TenantId = $TenantId.Trim()
+if (-Not $companyId) {
+    $companyId = 1
 }
 
-if (-Not $TicketId) {
-    $TicketId = ""
+if (-Not $tenantId) {
+    $tenantId = $env:Ms365_TenantId
 }
 
-Write-Host "Tenant Id: $TenantId"
-Write-Host "Ticket Id: $TicketId"
+$resultCode = 200
+$message = ""
 
-if ($resultCode -Eq 200) {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+$secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+$credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId
+Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
-    $groups = Get-MgGroup -Filter "groupTypes/Any(x:x eq 'Unified') and securityEnabled eq true"
+# Get all security groups in the tenant, excluding dynamic groups and those with administrative rights
+$groups = Get-MgGroup -Filter "groupTypes/Any(x:x eq 'Unified') and securityEnabled eq true"
 
-    $filteredGroups = $groups | Where-Object {
-        $_.GroupTypes -notcontains 'DynamicMembership' -and
-        $_.DisplayName -notmatch 'Admin|Administrator|Owner|Root'
-    }
-
-    if (-Not $filteredGroups) {
-        $message = "No security groups found."
-        $resultCode = 500
-    }
-
-    $groupsList = $filteredGroups | ForEach-Object {
-        $_.DisplayName
-    }
-
-    if ($resultCode -Eq 200) {
-        $message = "Request completed. Security groups listed successfully."
-    }
+$filteredGroups = $groups | Where-Object {
+    $_.GroupTypes -notcontains 'DynamicMembership' -and
+    $_.DisplayName -notmatch 'Admin|Administrator|Owner|Root'
 }
+
+# Extract group names
+$groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName 
+$groupNames = $groupNames | Sort-Object
+
+# Convert the array of group names to a comma-separated string
+$groupNamesString = $groupNames -join ","
+
+Set-CloudRadialToken -Token "CompanyM365SecurityGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
+
+Write-Host "Updated CompanyM365SecurityGroups for Company Id: $companyId."
+
+$message = "Company tokens for $companyId have been updated."
 
 $body = @{
-    Message      = $message + $groupsList
-    Groups       = $groupsList
+    Message      = $message
     TicketId     = $TicketId
     ResultCode   = $resultCode
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
