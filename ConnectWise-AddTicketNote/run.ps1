@@ -85,7 +85,7 @@ Write-Host "Internal: $Internal"
 # Log the parameters being sent to the API
 Write-Host "Calling New-CWMTicketNote with parameters: ticketId=$TicketId, text=$Text, internalFlag=$Internal"
 
-$result = New-CWMTicketNote -ticketId $TicketId -text $Text -detailDescriptionFlag $true -internalFlag $Internal -resolutionFlag $false
+$result = New-CWMTicketNote -ticketId $TicketId -text $Text -detailDescriptionFlag $true -internalAnalysisFlag $Internal -resolutionFlag $false
 
 Write-Host $result.Message
 
