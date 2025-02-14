@@ -97,21 +97,21 @@ function Add-UserLicenses {
             foreach ($skuId in $licensesToAdd) {
                 Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
             }
-            $message += "Added licenses: $($licensesPrettyNamesToAdd -join ', ')."
+            $message += "Added licenses:`r $($licensesPrettyNamesToAdd -join ', ')."
         } else {
             $message += "No licenses available to add."
         }
 
         if ($licensesNotAvailable.Count -gt 0) {
-            $message += " Licenses not available: $($licensesPrettyNamesNotAvailable -join ', ')."
+            $message += " Licenses not available:`r $($licensesPrettyNamesNotAvailable -join ', ')."
         }
 
         if ($licensesAlreadyAssigned.Count -gt 0) {
-            $message += " Licenses already assigned: $($licensesPrettyNamesAlreadyAssigned -join ', ')."
+            $message += " Licenses already assigned:`r $($licensesPrettyNamesAlreadyAssigned -join ', ')."
         }
 
     } catch {
-        $message = "An error occurred while adding licenses: $($_ | Out-String)"
+        $message = "An error occurred while adding licenses:`r $($_ | Out-String)"
     }
 
     return [string]$message
