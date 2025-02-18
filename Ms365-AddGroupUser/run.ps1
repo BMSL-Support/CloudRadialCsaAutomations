@@ -142,7 +142,7 @@ if ($resultCode -Eq 200)
     }
 
     if ($addedGroups.Count -gt 0) {
-        $message = "Request completed.`n`"$UserPrincipalName`" has been added to the following groups:`n" + ($addedGroups -join "`n")
+        $message = "Added Groups:`n`n" + ($addedGroups -join "`n")
     }
 }
 
