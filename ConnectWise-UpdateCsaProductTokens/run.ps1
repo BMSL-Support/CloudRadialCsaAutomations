@@ -38,6 +38,42 @@
         "ResultStatus": "Success"
     }
 #>
+<#
+.SYNOPSIS
+    This function collects products from ConnectWise and updates tokens in CloudRadial.
+
+.DESCRIPTION
+    This function fetches product data from ConnectWise using specified product identifiers, extracts the description and price, converts them to basic HTML, and saves them as strings in company-wide tokens in CloudRadial. The function requires the following environment variables to be set:
+    
+    - ConnectWise API Token
+    - CloudRadial API Public Key
+    - CloudRadial API Private Key
+
+    The function updates tokens for specified products.
+
+.INPUTS
+    CompanyId - numeric company id (optional, defaults to 1)
+    Identifiers - array of product identifiers
+
+.OUTPUTS
+    JSON response with the following fields:
+    - Message: Descriptive string of result
+    - ResultCode: 200 for success, 500 for failure
+    - ResultStatus: "Success" or "Failure"
+
+.EXPECTED INPUT
+    {
+        "CompanyId": 12,
+        "Identifiers": ["TypicalLaptop", "PerformanceLaptop"]
+    }
+
+.EXPECTED OUTPUT
+    {
+        "Message": "Company tokens for 12 have been updated.",
+        "ResultCode": 200,
+        "ResultStatus": "Success"
+    }
+#>
 
 using namespace System.Net
 
@@ -61,7 +97,7 @@ function Get-ConnectWiseProduct {
     Connect-CWM @Connection
 
     # Fetch product data
-    $product = Get-CWMProduct -Conditions "identifier='$Identifier'"
+    $product = Get-CWMProduct -Filter "identifier='$Identifier'"
     return $product
 }
 
