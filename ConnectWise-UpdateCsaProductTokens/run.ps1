@@ -57,7 +57,7 @@ function Get-ConnectWiseProduct {
     Connect-CWM @Connection
 
     # Fetch product data
-    $product = Get-CWMProduct -Where "identifier='$Identifier'"
+    $product = Get-CWMProduct -Condition "=identifier='$Identifier'"
     return $product
 }
 
