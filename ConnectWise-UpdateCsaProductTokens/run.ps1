@@ -128,7 +128,7 @@ $companyId = $Request.Body.CompanyId
 $identifiers = $Request.Body.Identifiers
 
 if (-Not $companyId) {
-    $companyId = 1
+    $companyId = 0
 }
 
 if (-Not $identifiers) {
