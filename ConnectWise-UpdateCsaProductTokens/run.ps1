@@ -39,22 +39,8 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-function Clean-Identifier {
-    param (
-        [string]$Identifier
-    )
-    # Remove special characters
-    $cleanIdentifier = $Identifier -replace '[^a-zA-Z0-9]', ''
-    return $cleanIdentifier
-}
-
-function Get-ConnectWiseProduct {
-    param (
-        [string]$Identifier
-    )
-
     # Clean the identifier
-    $cleanIdentifier = Clean-Identifier -Identifier $Identifier
+    $cleanIdentifier = $Identifier.Trim()
 
     Import-Module "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1"
     
@@ -69,7 +55,7 @@ function Get-ConnectWiseProduct {
     Connect-CWM @Connection
 
     # Fetch product data using the cleaned identifier
-    $product = Get-CWMProduct -Condition "identifier='$cleanIdentifier'"
+    $product = Get-CWMProductCatalog -Condition "identifier='$cleanIdentifier'"
     return $product
 }
 
