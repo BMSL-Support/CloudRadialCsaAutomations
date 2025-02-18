@@ -69,12 +69,7 @@ function Get-ConnectWiseProduct {
     Connect-CWM @Connection
 
     # Fetch product data using the cleaned identifier
-    $product = Get-CWMProduct -Condition "=identifier='$cleanIdentifier'"
-    return $product
-}
-
-    # Fetch product data
-    $product = Get-CWMProduct -Condition "=identifier='$Identifier'"
+    $product = Get-CWMProduct -Condition "identifier='$cleanIdentifier'"
     return $product
 }
 
