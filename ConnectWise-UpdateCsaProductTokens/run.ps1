@@ -113,10 +113,13 @@ function Update-CloudRadialTokens {
 
     foreach ($identifier in $Identifiers) {
         $productData = Get-ConnectWiseProduct -Identifier $identifier
-        $description = $productData.description
+        $description = $productData.customerDescription
         $price = $productData.price
 
-        $htmlValue = "<p>Description: $description</p><p>Price: $price</p>"
+        # Format the price in GBP with a £ symbol
+        $formattedPrice = "£{0:N2}" -f [decimal]$price
+
+        $htmlValue = "<div><p>Description: $description</p><p>Price: $formattedPrice</p></div>"
 
         Set-CloudRadialToken -Token "@$identifier" -AppId $env:CloudRadialCsa_ApiPublicKey -SecretId $env:CloudRadialCsa_ApiPrivateKey -CompanyId $CompanyId -Value $htmlValue
     }
