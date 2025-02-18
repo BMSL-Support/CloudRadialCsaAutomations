@@ -119,7 +119,7 @@ function Update-CloudRadialTokens {
         # Format the price in GBP with a £ symbol
         $formattedPrice = "£{0:N2}" -f [decimal]$price
 
-        $htmlValue = "<div><p>Description: $description</p><p>Price: $formattedPrice</p></div>"
+        $htmlValue = "<div><p><strong>Description:</strong></p> $description</p><p><strong>Price:</strong> $formattedPrice</p></div>"
 
         Set-CloudRadialToken -Token "@$identifier" -AppId $env:CloudRadialCsa_ApiPublicKey -SecretId $env:CloudRadialCsa_ApiPrivateKey -CompanyId $CompanyId -Value $htmlValue
     }
