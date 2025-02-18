@@ -57,7 +57,6 @@ param($Request, $TriggerMetadata)
     # Fetch product data using the cleaned identifier
     $product = Get-CWMProductCatalog -Condition "identifier='$cleanIdentifier'"
     return $product
-}
 
 function Set-CloudRadialToken {
     param (
