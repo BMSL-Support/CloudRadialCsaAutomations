@@ -113,6 +113,8 @@ if ($resultCode -Eq 200)
         $resultCode = 500
     }
 
+    $addedGroups = @()
+
     foreach ($GroupName in $GroupNames) {
         $GroupObject = Get-MgGroup -Filter "displayName eq '$GroupName'"
 
@@ -135,8 +137,12 @@ if ($resultCode -Eq 200)
 
         if ($resultCode -Eq 200) {
             New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
-            $message += "Request completed. `"$UserPrincipalName`" has been added to group `"$GroupName`".`n"
+            $addedGroups += $GroupName
         }
+    }
+
+    if ($addedGroups.Count -gt 0) {
+        $message = "Request completed.`n`"$UserPrincipalName`" has been added to the following groups:`n" + ($addedGroups -join "`n")
     }
 }
 
