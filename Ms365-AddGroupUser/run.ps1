@@ -44,6 +44,7 @@
     TicketId - TicketId passed in Parameters
     ResultCode - 200 for success, 500 for failure
     ResultStatus - "Success" or "Failure"
+    Internal - Boolean value indicating if the operation is internal
 
 #>
 
@@ -151,6 +152,7 @@ $body = @{
     TicketId = $TicketId
     ResultCode = $resultCode
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+    Internal     = $true
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
