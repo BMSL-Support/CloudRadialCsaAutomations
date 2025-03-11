@@ -1,3 +1,4 @@
+<# 
 .SYNOPSIS
 
     This function is used to update the company tokens in CloudRadial from a Microsoft 365 tenant.
@@ -121,23 +122,6 @@ $groupNamesString = $groupNames -join ","
 Set-CloudRadialToken -Token "CompanyM365SecurityGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
 
 Write-Host "Updated CompanyM365SecurityGroups for Company Id: $companyId."
-
-# Get all security groups in the tenant
-$softwareGroups = Get-MgGroup -Filter "securityEnabled eq true" -All
-
-# Filter groups that start with "Security -" or "Data -"
-$filteredswGroups = $softwareGroups | Where-Object { $_.DisplayName -like "Software -*" }
-
-# Extract group names
-$swgroupNames = $filteredswGroups | Select-Object -ExpandProperty DisplayName 
-$swgroupNames = $swgroupNames | Sort-Object
-
-# Convert the array of group names to a comma-separated string
-$swgroupNamesString = $swgroupNames -join ","
-
-Set-CloudRadialToken -Token "CompanyM365SoftwareGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $swgroupNamesString
-
-Write-Host "Updated CompanyM365SoftwareGroups for Company Id: $companyId."
 
 $message = "Company tokens for $companyId have been updated."
 
