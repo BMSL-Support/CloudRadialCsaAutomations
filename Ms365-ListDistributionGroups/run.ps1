@@ -109,14 +109,17 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 # Get all distribution groups in the tenant
 $distributionGroups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'Unified')" -All
 
-# Extract group names
-$groupNames = $distributionGroups | Select-Object -ExpandProperty DisplayName 
-$groupNames = $groupNames | Sort-Object
+# Filter out groups with .onmicrosoft.com addresses
+$filteredGroups = $distributionGroups | Where-Object { $_.Mail -notlike "*.onmicrosoft.com" }
 
-# Convert the array of group names to a comma-separated string
-$groupNamesString = $groupNames -join ","
+# Extract group names and email addresses
+$groupDetails = $filteredGroups | Select-Object @{Name="GroupName";Expression={$_.DisplayName}}, @{Name="EmailAddress";Expression={$_.Mail}}
+$groupDetails = $groupDetails | Sort-Object GroupName
 
-Set-CloudRadialToken -Token "CompanyM365DistributionGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
+# Convert the array of group details to a comma-separated string
+$groupDetailsString = $groupDetails | ForEach-Object { "$($_.GroupName) <$($_.EmailAddress)>" } -join ","
+
+Set-CloudRadialToken -Token "CompanyM365DistributionGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupDetailsString
 
 Write-Host "Updated CompanyM365DistributionGroups for Company Id: $companyId."
 
