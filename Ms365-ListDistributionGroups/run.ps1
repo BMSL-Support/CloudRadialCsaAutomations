@@ -107,10 +107,13 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
 # Get all distribution groups in the tenant
-$distributionGroups = Get-DistributionGroup | Where-Object { $_.PrimarySmtpAddress -notlike "*.onmicrosoft.com" }
+$distributionGroups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'Unified')" -All
+
+# Filter out groups with .onmicrosoft.com addresses
+$filteredGroups = $distributionGroups | Where-Object { $_.Mail -notlike "*.onmicrosoft.com" }
 
 # Extract group names
-$groupNames = $distributionGroups | Select-Object -ExpandProperty DisplayName 
+$groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName 
 $groupNames = $groupNames | Sort-Object
 
 # Convert the array of group names to a comma-separated string
