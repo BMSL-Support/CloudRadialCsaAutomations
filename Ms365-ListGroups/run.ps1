@@ -123,6 +123,25 @@ Set-CloudRadialToken -Token "CompanyM365SecurityGroups" -AppId ${env:CloudRadial
 
 Write-Host "Updated CompanyM365SecurityGroups for Company Id: $companyId."
 
+# Add new functionality
+$CompanyM365SecurityGroups = @()
+$CompanyM365SoftwareGroups = @()
+
+$groups = Get-MsolGroup
+
+foreach ($group in $groups) {
+    if ($group.DisplayName -like "Security -*" -or $group.DisplayName -like "Data -*" -or $group.DisplayName -like "SP Data -*") {
+        $CompanyM365SecurityGroups += $group
+    }
+    elseif ($group.DisplayName -like "Software -*") {
+        $CompanyM365SoftwareGroups += $group
+    }
+}
+
+# Assign groups to CloudRadial tokens
+Set-CloudRadialToken -Name "CompanyM365SecurityGroups" -Value $CompanyM365SecurityGroups
+Set-CloudRadialToken -Name "CompanyM365SoftwareGroups" -Value $CompanyM365SoftwareGroups
+
 $message = "Company tokens for $companyId have been updated."
 
 $body = @{
