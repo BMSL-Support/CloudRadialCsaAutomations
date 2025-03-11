@@ -123,19 +123,19 @@ Set-CloudRadialToken -Token "CompanyM365SecurityGroups" -AppId ${env:CloudRadial
 Write-Host "Updated CompanyM365SecurityGroups for Company Id: $companyId."
 
 # Get all security groups in the tenant
-$securityGroups = Get-MgGroup -Filter "securityEnabled eq true" -All
+$softwareGroups = Get-MgGroup -Filter "securityEnabled eq true" -All
 
 # Filter groups that start with "Security -" or "Data -"
-$filteredGroups = $securityGroups | Where-Object { $_.DisplayName -like "Software -*" }
+$filteredswGroups = $softwareGroups | Where-Object { $_.DisplayName -like "Software -*" }
 
 # Extract group names
-$groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName 
-$groupNames = $groupNames | Sort-Object
+$swgroupNames = $filteredswGroups | Select-Object -ExpandProperty DisplayName 
+$swgroupNames = $swgroupNames | Sort-Object
 
 # Convert the array of group names to a comma-separated string
-$groupNamesString = $groupNames -join ","
+$swgroupNamesString = $swgroupNames -join ","
 
-Set-CloudRadialToken -Token "CompanyM365SoftwareGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
+Set-CloudRadialToken -Token "CompanyM365SoftwareGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $swgroupNamesString
 
 Write-Host "Updated CompanyM365SoftwareGroups for Company Id: $companyId."
 
