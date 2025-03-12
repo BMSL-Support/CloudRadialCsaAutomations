@@ -107,12 +107,10 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
 # Get all shared mailboxes in the tenant
-$users = Get-MgUser -All
-
-$filteredusers = $mailuser | Where-Object { $_.Mail -notlike "*.onmicrosoft.com" }
+$users = Get-MgUser -All | Where-Object { $_.Mail -notlike "*.onmicrosoft.com" }
 
 # Extract mailbox names
-$sharedMailboxes = $filteredusers | ForEach-Object {
+$sharedMailboxes = $users | ForEach-Object {
     $mailboxSettings = Get-MgUserMailboxSetting -UserId $_.Id
     if ($mailboxSettings.UserPurpose -eq 'shared') {
         $_.DisplayName
