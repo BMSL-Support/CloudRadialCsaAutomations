@@ -110,7 +110,7 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 $users = Get-MgUser -All
 
 # Extract mailbox names
-$sharedMailboxes = Get-MgUser -Filter "mailNickname ne null and userType eq 'SharedMailbox'"
+$sharedMailboxes = Get-MgUser -Filter "userType eq 'SharedMailbox'"
 
 $sharedMailboxes | Select-Object -Property DisplayName
 
