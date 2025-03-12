@@ -109,11 +109,16 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 # Get all shared mailboxes in the tenant
 $users = Get-MgUser -All | Where-Object { $_.Mail -notlike "*.onmicrosoft.com" }
 
-# Extract mailbox names
-$sharedMailboxes = $users | ForEach-Object {
-    $mailboxSettings = Get-MgUserMailboxSetting -UserId $_.Id
-    if ($mailboxSettings.UserPurpose -eq 'shared') {
-        $_.DisplayName
+$sharedMailboxes = @()
+
+foreach ($user in $users) {
+    try {
+        $mailboxSettings = Get-MgUserMailboxSetting -UserId $user.Id
+        if ($mailboxSettings.UserPurpose -eq 'shared') {
+            $sharedMailboxes += $user.DisplayName
+        }
+    } catch {
+        Write-Host "Skipping mailbox for user $($user.DisplayName): $_"
     }
 }
 
