@@ -107,11 +107,14 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
 # Get all shared mailboxes in the tenant
-$sharedMailboxes = Get-MgUser -Filter "mailboxSettings/sharedMailbox eq true" -All
+$users = Get-MgUser -All
 
 # Extract mailbox names
-$mailboxNames = $sharedMailboxes | Select-Object -ExpandProperty DisplayName 
-$mailboxNames = $mailboxNames | Sort-Object
+$mailboxNames = $users | ForEach-Object {
+    $mailboxSettings = Get-MgUserMailboxSetting -UserId $_.Id
+    if ($mailboxSettings.UserPurpose -eq 'shared') {
+        $_.DisplayName
+    }
 
 # Convert the array of mailbox names to a comma-separated string
 $mailboxNamesString = $mailboxNames -join ","
