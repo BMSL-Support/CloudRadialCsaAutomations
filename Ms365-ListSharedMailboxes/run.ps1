@@ -113,9 +113,11 @@ $users = Get-MgUser -All
 $sharedMailboxes = $users | ForEach-Object {
     $mailboxSettings = Get-MgUserMailboxSetting -UserId $_.Id
     if ($mailboxSettings.UserPurpose -eq 'shared') {
-        $_
+        $_.DisplayName
     }
 }
+
+$sharedMailboxes | Where-Object { $_ -ne $null }
 
 # Convert the array of mailbox names to a comma-separated string
 $mailboxNamesString = $sharedMailboxes -join ","
