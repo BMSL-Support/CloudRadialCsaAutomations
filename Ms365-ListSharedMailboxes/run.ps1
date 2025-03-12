@@ -110,14 +110,12 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 $users = Get-MgUser -All
 
 # Extract mailbox names
-$mailboxNames = $users | ForEach-Object {
-    $mailboxSettings = Get-MgUserMailboxSetting -UserId $_.Id
-    if ($mailboxSettings.UserPurpose -eq 'shared') {
-        $_.DisplayName
-    }
+$sharedMailboxes = Get-MgUser -Filter "mailNickname ne null and userType eq 'SharedMailbox'"
+
+$sharedMailboxes | Select-Object -Property DisplayName
 
 # Convert the array of mailbox names to a comma-separated string
-$mailboxNamesString = $mailboxNames -join ","
+$mailboxNamesString = $sharedMailboxes -join ","
 
 Set-CloudRadialToken -Token "CompanyM365SharedMailboxes" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $mailboxNamesString
 
