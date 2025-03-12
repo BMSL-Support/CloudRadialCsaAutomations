@@ -110,9 +110,12 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 $users = Get-MgUser -All
 
 # Extract mailbox names
-$sharedMailboxes = Get-MgUser -Filter "userType eq 'SharedMailbox'"
-
-$sharedMailboxes | Select-Object -Property DisplayName
+$sharedMailboxes = $users | ForEach-Object {
+    $mailboxSettings = Get-MgUserMailboxSetting -UserId $_.Id
+    if ($mailboxSettings.UserPurpose -eq 'shared') {
+        $_
+    }
+}
 
 # Convert the array of mailbox names to a comma-separated string
 $mailboxNamesString = $sharedMailboxes -join ","
