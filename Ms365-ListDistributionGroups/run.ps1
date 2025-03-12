@@ -107,7 +107,7 @@ $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365
 Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWelcome
 
 # Get all distribution groups in the tenant
-$distributionGroups = Get-MgGroup -Filter "mailEnabled eq true and NOT(groupTypes/any(s:s eq 'Unified'))" -All
+$distributionGroups = Get-MgGroup -Filter "groupTypes/any(c:c ne 'Unified') and mailEnabled eq true" -All
 
 # Filter out groups with .onmicrosoft.com addresses
 $filteredGroups = $distributionGroups | Where-Object { $_.Mail -notlike "*.onmicrosoft.com" }
