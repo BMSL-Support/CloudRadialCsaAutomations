@@ -113,12 +113,14 @@ $sharedMailboxes = @()
 
 foreach ($user in $users) {
     try {
-        $mailboxSettings = Get-MgUserMailboxSetting -UserId $user.Id
+        $mailboxSettings = Get-MgUserMailboxSetting -UserId $user.Id -ErrorAction SilentlyContinue
         if ($mailboxSettings.UserPurpose -eq 'shared') {
             $sharedMailboxes += $user.DisplayName
         }
     } catch {
-        Write-Host "Skipping mailbox for user $($user.DisplayName): $_"
+        if ($_.Exception.Message -notmatch "MailboxNotEnabledForRESTAPI") {
+            Write-Host "Skipping mailbox for user $($user.DisplayName): $_"
+        }
     }
 }
 
