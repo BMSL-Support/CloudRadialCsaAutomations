@@ -19,9 +19,10 @@
         "NewUserLastName": "Doe",
         "NewUserEmail": "john.doe@example.com",
         "JobTitle": "Software Engineer",
+        "AddJobTitle": "Software Engineer",
+        "Dept": "Engineering",
         "OfficePhone": "+1234567890",
-        "MobilePhone": "+0987654321",
-        "LicenseTypes": ["ENTERPRISEPACK", "STANDARDPACK"]
+        "MobilePhone": "+0987654321"
     }
 .OUTPUTS
     JSON response with the following fields:
@@ -31,7 +32,6 @@
     ResultStatus - "Success" or "Failure"
     UserPrincipalName - UPN of the new user created
     TenantId - Tenant Id of the Microsoft 365 tenant
-    RequestedLicense - Array of license types
 #>
 
 using namespace System.Net
@@ -48,6 +48,8 @@ $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
 $NewUserEmail = $Request.Body.NewUserEmail
 $JobTitle = $Request.Body.JobTitle
+$AddJobTitle = $Request.Body.AddJobTitle
+$Dept = $Request.Body.Dept
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
 $LicenseTypes = $Request.Body.LicenseTypes
@@ -107,6 +109,12 @@ try {
     if ($OfficePhone -eq "@NUsersOfficePhone" -or -not $OfficePhone) {
         $OfficePhone = $null
     }
+    if ($AddJobTitle -eq "@NUsersAddJobTitle" -or -not $AddJobTitle) {
+        $AddJobTitle = $null
+    }
+    if ($Dept -eq "@NUsersDept" -or -not $Dept) {
+        $Dept = $null
+    }
     if ($MobilePhone -eq "@NUsersMobilePhone" -or -not $MobilePhone) {
         $MobilePhone = $null
     }
@@ -125,6 +133,12 @@ try {
 
     if ($JobTitle) {
         $newUserParams.JobTitle = $JobTitle
+    }
+    if ($AddJobTitle) {
+        $newUserParams.City = $AddJobTitle
+    }
+    if ($Dept) {
+        $newUserParams.Department = $Dept
     }
     if ($OfficePhone) {
         $newUserParams.BusinessPhones = $OfficePhone
