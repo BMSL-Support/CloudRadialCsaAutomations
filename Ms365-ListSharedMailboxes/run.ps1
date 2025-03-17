@@ -127,7 +127,7 @@ foreach ($user in $users) {
 $sharedMailboxes | Where-Object { $_ -ne $null }
 
 # Convert the array of group names to a comma-separated string
-$mailboxNamesString = if ($$sharedMailboxes) { $sharedMailboxes -join "," } else { "No Shared Mailboxes available at this time." }
+$mailboxNamesString = if ($sharedMailboxes) { $sharedMailboxes -join "," } else { "No shared mailboxes available at this time." }
 
 Set-CloudRadialToken -Token "CompanyM365SharedMailboxes" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $mailboxNamesString
 
