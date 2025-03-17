@@ -140,7 +140,7 @@ $licenseNames = $licenseNames | Sort-Object
 $licenseNamesString = $licenseNames -join ","
 
 # Convert the array of group names to a comma-separated string
-$licenseNamesString = if ($licenseNames) { $licenseNames -join "," } else { "No Licences available at this time." }
+$licenseNamesString = if ($licenseNames) { $licenseNames -join "," } else { "No licences available at this time." }
 
 Set-CompanyM365Licenses -Token "CompanyM365Licenses" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -LicenseList $licenseNamesString
 
