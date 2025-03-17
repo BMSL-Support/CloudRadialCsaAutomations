@@ -116,6 +116,9 @@ $teamNames = $teamNames | Sort-Object
 # Convert the array of team names to a comma-separated string
 $teamNamesString = $teamNames -join ","
 
+# Convert the array of group names to a comma-separated string
+$teamNamesString = if ($teamNames) { $teamNames -join "," } else { "No Teams groups available at this time." }
+
 Set-CloudRadialToken -Token "CompanyM365Teams" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $teamNamesString
 
 Write-Host "Updated CompanyM365Teams for Company Id: $companyId."
