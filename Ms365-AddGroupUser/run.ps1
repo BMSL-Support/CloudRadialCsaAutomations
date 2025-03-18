@@ -47,7 +47,6 @@
     Internal - Boolean value indicating if the operation is internal
 
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -77,7 +76,7 @@ else {
 }
 
 if (-Not $GroupNames -or $GroupNames.Count -eq 0) {
-    $message = "GroupNames cannot be blank."
+    $message = "No groups specified on the form."
     $resultCode = 500
 }
 
