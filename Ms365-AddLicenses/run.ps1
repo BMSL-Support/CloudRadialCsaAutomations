@@ -44,7 +44,7 @@ function Add-UserLicenses {
         [Parameter(Mandatory=$true)][string]$AppId,
         [Parameter(Mandatory=$true)][string]$SecretId,
         [Parameter(Mandatory=$true)][string]$TenantId,
-        [Parameter(Mandatory=$true)][array]$RequestedLicense,
+        [Parameter(Mandatory=$false)][array]$RequestedLicense,
         [Parameter(Mandatory=$true)][string]$TicketId
     )
 
@@ -53,6 +53,10 @@ function Add-UserLicenses {
         $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
         $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
         Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
+
+        if (-not $RequestedLicense) {
+            return "no license assignment was specified on the form."
+        }
 
         # Get all licenses in the tenant
         $licenses = Get-MgSubscribedSku
