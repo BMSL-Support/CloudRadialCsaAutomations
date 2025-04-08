@@ -61,30 +61,37 @@ $NewUserEmail = $Request.Body.NewUserEmail
 $ExistingUserEmail = $Request.Body.ExistingUserEmail
 $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
-$NewUserDisplayName = $Request.Body.NewUserDisplayName
+$NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
 $TenantId = $Request.Body.TenantId
 $TicketId = $Request.Body.TicketId
 $SecurityKey = $env:SecurityKey
+
+# Optional parameters
+$JobTitle = $Request.Body.JobTitle
+$AddJobTitle = $Request.Body.AddJobTitle
+$Dept = $Request.Body.Dept
+$OfficePhone = $Request.Body.OfficePhone
+$MobilePhone = $Request.Body.MobilePhone
 
 if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
     Write-Host "Invalid security key"
     break;
 }
 
-if (-Not $userEmail) {
-    $message = "UserEmail cannot be blank."
+if (-Not $NewUserEmail) {
+    $message = "NewUserEmail cannot be blank."
     $resultCode = 500
 }
 else {
-    $UserEmail = $UserEmail.Trim()
+    $NewUserEmail = $NewUserEmail.Trim()
 }
 
-if (-Not $groupName) {
-    $message = "GroupName cannot be blank."
+if (-Not $ExistingUserEmail) {
+    $message = "ExistingUserEmail cannot be blank."
     $resultCode = 500
 }
 else {
-    $GroupName = $GroupName.Trim()
+    $ExistingUserEmail = $ExistingUserEmail.Trim()
 }
 
 if (-Not $TenantId) {
@@ -98,8 +105,8 @@ if (-Not $TicketId) {
     $TicketId = ""
 }
 
-Write-Host "User Email: $UserEmail"
-Write-Host "Group Name: $GroupName"
+Write-Host "New User Email: $NewUserEmail"
+Write-Host "Existing User Email: $ExistingUserEmail"
 Write-Host "Tenant Id: $TenantId"
 Write-Host "Ticket Id: $TicketId"
 
@@ -121,45 +128,20 @@ if ($resultCode -Eq 200) {
         $resultCode = 500
     }
 
-    # Check if the existing user has any assigned licenses
-    if ($existingUser.AssignedLicenses.Count -eq 0) {
-        Write-Host "The existing user `"$ExistingUserEmail`" does not have any assigned licenses."
-    }
-    else {
-        # Retrieve all available licenses
-        $availableLicenses = Get-MgSubscribedSku
-
-        # Check if the available licenses match the existing user's licenses
-        $existingUserLicenseIds = $existingUser.AssignedLicenses.SkuId
-        $missingLicenses = $availableLicenses | Where-Object { $existingUserLicenseIds -notcontains $_.SkuId }
-
-        if ($missingLicenses.Count -gt 0) {
-            Write-Host "The following licenses are missing for the new user:"
-            $missingLicenses | ForEach-Object {
-                Write-Host "- $($_.SkuPartNumber)"
-            }
-            $resultCode = 500
-            $message = "Request failed. The existing user `"$ExistingUserEmail`" has licenses that are not available for the new user."
-    }
-
     if ($resultCode -eq 200) {
         # Create the new user
-        $newUser = New-MgUser -UserPrincipalName $newUserUpn -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName
+        $newUser = New-MgUser -UserPrincipalName $newUserUpn -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName -JobTitle $JobTitle -Department $Dept -OfficePhone $OfficePhone -MobilePhone $MobilePhone
 
-        # Assign the same licenses as the existing user
-        $existingUser.AssignedLicenses | ForEach-Object {
-            Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $_.SkuId }
-        }
-
-        # Add the new user to specified groups (replace with actual group IDs)
-        $groupIds = @("group1-id", "group2-id")
-        $groupIds | ForEach-Object {
-            New-MgGroupMember -GroupId $_ -DirectoryObjectId $newUser.Id
-        }
-
-        $message = "New user `"$NewUserEmail`" created successfully and assigned licenses and added to groups like user `"$ExistingUserEmail`"."
+        $message = "New user `"$NewUserEmail`" created successfully like user `"$ExistingUserEmail`"."
     }
+}
 
+# Prepare the output JSON
+$outputJson = @{
+    TenantId = $TenantId
+    UserPrincipalName = $NewUserEmail
+    RequestedLicense = @($existingUser.AssignedLicenses.SkuId)
+    TicketId = $TicketId
 }
 
 $body = @{
@@ -167,6 +149,10 @@ $body = @{
     TicketId     = $TicketId
     ResultCode   = $resultCode
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+    TenantId     = $TenantId
+    UserPrincipalName = $NewUserEmail
+    RequestedLicense = @($existingUser.AssignedLicenses.SkuId)
+    TicketId     = $TicketId
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
