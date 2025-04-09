@@ -97,4 +97,65 @@ Write-Host "Ticket Id: $TicketId"
 
 if ($resultCode -Eq 200)
 {
-    $secure365Password = ConvertTo-SecureString -String $env:
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
+
+    $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
+
+    Write-Host $UserObject.userPrincipalName
+    Write-Host $UserObject.Id
+
+    if (-Not $UserObject) {
+        $message = "Request failed. User `"$UserPrincipalName`" could not be found."
+        $resultCode = 500
+    }
+
+    $addedGroups = @()
+
+    foreach ($GroupName in $GroupNames) {
+        $GroupObject = Get-MgGroup -Filter "displayName eq '$GroupName'"
+
+        Write-Host $GroupObject.DisplayName
+        Write-Host $GroupObject.Id
+
+        if (-Not $GroupObject) {
+            $message += "Request failed. Group `"$GroupName`" could not be found to add user `"$UserPrincipalName`" to.`n"
+            $resultCode = 500
+            continue
+        }
+
+        $GroupMembers = Get-MgGroupMember -GroupId $GroupObject.Id
+
+        if ($GroupMembers.Id -Contains $UserObject.Id) {
+            $message += "Request failed. User `"$UserPrincipalName`" is already a member of group `"$GroupName`".`n"
+            $resultCode = 500
+            continue
+        } 
+
+        if ($resultCode -Eq 200) {
+            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
+            $addedGroups += $GroupName
+        }
+    }
+
+    if ($addedGroups.Count -gt 0) {
+        $message = "Added Groups:`n`n" + ($addedGroups -join "`n")
+    }
+}
+
+$body = @{
+    Message = $message
+    TicketId = $TicketId
+    ResultCode = $resultCode
+    ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+    Internal     = $true
+} 
+
+# Associate values to output bindings by calling 'Push-OutputBinding'.
+Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+    StatusCode = [HttpStatusCode]::OK
+    Body = $body
+    ContentType = "application/json"
+})
