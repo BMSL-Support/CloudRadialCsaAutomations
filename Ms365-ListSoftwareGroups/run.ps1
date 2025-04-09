@@ -117,7 +117,7 @@ $groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName
 $groupNames = $groupNames | Sort-Object
 
 # Convert the array of group names to a comma-separated string
-$groupNamesString = if ($groupNames) { $groupNames -join "," } else { "No software deployment groups available at this time." }
+$groupNamesString = if ($groupNames) { $groupNames -join "," } else { "No groups available at this time." }
 
 Set-CloudRadialToken -Token "CompanyM365SoftwareGroups" -AppId ${env:CloudRadialCsa_ApiPublicKey} -SecretId ${env:CloudRadialCsa_ApiPrivateKey} -CompanyId $companyId -GroupList $groupNamesString
 
