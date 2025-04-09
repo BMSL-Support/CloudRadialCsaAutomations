@@ -40,7 +40,6 @@
   "Dept": "Engineering",
   "OfficePhone": "+1234567890",
   "MobilePhone": "+0987654321",
-  "LicenseTypes": ["LicenseType1", "LicenseType2"],
   "LikeUserGroup": "existinguser@example.com"
 }
 
@@ -73,7 +72,6 @@ $AddJobTitle = $Request.Body.AddJobTitle
 $Dept = $Request.Body.Dept
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
-$LicenseTypes = $Request.Body.LicenseTypes
 $LikeUserGroup = $Request.Body.LikeUserGroup
 $SecurityKey = $env:SecurityKey
 
@@ -205,7 +203,6 @@ $body = @{
     ResultStatus      = if ($resultCode -eq 200) { "Success" } else { "Failure" }
     UserPrincipalName = $UserPrincipalName
     TenantId          = $TenantId
-    RequestedLicense  = $LicenseTypes
     Internal          = $true
 } 
 
