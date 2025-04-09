@@ -96,11 +96,11 @@ function Add-UserLicenses {
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
-            $message += "The following licenses will need to be assigned: $($licensesPrettyNamesToAdd -join ', ')."
+            $message += "The following licenses will need to be assigned:`n`n $($licensesPrettyNamesToAdd -join ',`n ')."
         }
 
         if ($licensesNotAvailable.Count -gt 0) {
-            $message += " Please ask the admin team to order the following licenses: $($licensesPrettyNamesNotAvailable -join ', ')."
+            $message += " Please ask the admin team to order the following licenses: $($licensesPrettyNamesNotAvailable -join ',`n ')."
         }
 
     } catch {
