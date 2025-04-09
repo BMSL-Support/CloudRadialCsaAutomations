@@ -55,7 +55,7 @@ function Add-UserLicenses {
         Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
 
         if (-not $RequestedLicense) {
-            return "no license assignment was specified on the form."
+            return "No license assignment was specified on the form."
         }
 
         # Get all licenses in the tenant
@@ -66,10 +66,8 @@ function Add-UserLicenses {
 
         $licensesToAdd = @()
         $licensesNotAvailable = @()
-        $licensesAlreadyAssigned = @()
         $licensesPrettyNamesToAdd = @()
         $licensesPrettyNamesNotAvailable = @()
-        $licensesPrettyNamesAlreadyAssigned = @()
 
         $user = Get-MgUser -UserId $UserPrincipalName
         $assignedLicenses = $user.AssignedLicenses | ForEach-Object { $_.SkuId }
@@ -77,13 +75,12 @@ function Add-UserLicenses {
         foreach ($licenseType in $RequestedLicense) {
             $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
             if ($assignedLicenses -contains $skuId) {
-                $licensesAlreadyAssigned += $skuId
-                $licensesPrettyNamesAlreadyAssigned += $licenseType
+                continue
             } else {
                 $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
                 if ($license) {
                     if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
-                        $licensesToAdd += $skuId
+                        $licensesToAdd += $licenseType
                         $licensesPrettyNamesToAdd += $licenseType
                     } else {
                         $licensesNotAvailable += $licenseType
@@ -99,24 +96,15 @@ function Add-UserLicenses {
         $message = ""
 
         if ($licensesToAdd.Count -gt 0) {
-            foreach ($skuId in $licensesToAdd) {
-                Set-MgUserLicense -UserId $user.Id -AddLicenses @{SkuId = $skuId} -RemoveLicenses @()
-            }
-            $message += "Added licenses:`r $($licensesPrettyNamesToAdd -join ', ')."
-        } else {
-            $message += "No licenses available to add."
+            $message += "The following licenses will need to be assigned: $($licensesPrettyNamesToAdd -join ', ')."
         }
 
         if ($licensesNotAvailable.Count -gt 0) {
-            $message += " Licenses not available:`r $($licensesPrettyNamesNotAvailable -join ', ')."
-        }
-
-        if ($licensesAlreadyAssigned.Count -gt 0) {
-            $message += " Licenses already assigned:`r $($licensesPrettyNamesAlreadyAssigned -join ', ')."
+            $message += " Please ask the admin team to order the following licenses: $($licensesPrettyNamesNotAvailable -join ', ')."
         }
 
     } catch {
-        $message = "An error occurred while adding licenses:`r $($_ | Out-String)"
+        $message = "An error occurred while adding licenses: $($_ | Out-String)"
     }
 
     return [string]$message
