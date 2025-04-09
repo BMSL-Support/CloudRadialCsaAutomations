@@ -41,7 +41,7 @@
   "OfficePhone": "+1234567890",
   "MobilePhone": "+0987654321",
   "LicenseTypes": ["LicenseType1", "LicenseType2"],
-  "LikeUser": "existinguser@example.com"
+  "LikeUserGroup": "existinguser@example.com"
 }
 
 .OUTPUTS
@@ -74,7 +74,7 @@ $Dept = $Request.Body.Dept
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
 $LicenseTypes = $Request.Body.LicenseTypes
-$LikeUser = $Request.Body.LikeUser
+$LikeUserGroup = $Request.Body.LikeUserGroup
 $SecurityKey = $env:SecurityKey
 
 # Function to generate a random password
@@ -175,18 +175,18 @@ try {
         $message = "New user $NewUserDisplayName created successfully.`r `rUsername: $NewUserEmail `rPassword: $Password"
         $UserPrincipalName = $newUser.UserPrincipalName
 
-        # If LikeUser is specified, add the new user to the same groups as the existing user
-        if ($LikeUser) {
-            $existingUser = Get-MgUser -UserPrincipalName $LikeUser
+        # If LikeUserGroup is specified, add the new user to the same groups as the existing user
+        if ($LikeUserGroup) {
+            $existingUser = Get-MgUser -UserPrincipalName $LikeUserGroup
 
             if ($existingUser) {
                 $groupIds = Get-MgUserMemberOf -UserId $existingUser.Id | Where-Object { $_.ODataType -eq "#microsoft.graph.group" } | Select-Object -ExpandProperty Id
                 $groupIds | ForEach-Object {
                     New-MgGroupMember -GroupId $_ -DirectoryObjectId $newUser.Id
                 }
-                $message += "`rNew user added to the same groups as $LikeUser."
+                $message += "`rNew user added to the same groups as $LikeUserGroup."
             } else {
-                $message += "`rFailed to retrieve groups for user $LikeUser."
+                $message += "`rFailed to retrieve groups for user $LikeUserGroup."
             }
         }
     } else {
