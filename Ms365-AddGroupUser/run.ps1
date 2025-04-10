@@ -82,8 +82,7 @@ else {
 }
 
 if (-Not $GroupNames -or $GroupNames.Count -eq 0 -or $GroupNames -eq "No groups available at this time.") {
-    $message = "No groups specified on the form."
-    $resultCode = 500
+    $GroupNames = @()
 }
 
 if (-Not $TenantId) {
@@ -128,6 +127,7 @@ if ($resultCode -Eq 200)
         if ($likeUserObject) {
             $userGroups = Get-MgUserMemberOf -UserId $likeUserObject.Id | Where-Object { $_.DisplayName -like "Security -*" -or $_.DisplayName -like "Data -*" -or $_.DisplayName -like "SP Data -*" }
             foreach ($group in $userGroups) {
+                $GroupNames += $group.DisplayName
                 New-MgGroupMember -GroupId $group.Id -DirectoryObjectId $UserObject.Id
                 $likeUserGroups += $group.DisplayName
             }
@@ -143,6 +143,7 @@ if ($resultCode -Eq 200)
             $distributionGroups = Get-MgGroup -Filter "mailEnabled eq true" -All
             $filteredGroups = $distributionGroups | Where-Object { $_.groupTypes -notcontains 'Unified' -and $_.Mail -notlike "*.onmicrosoft.com" }
             foreach ($group in $filteredGroups) {
+                $GroupNames += $group.DisplayName
                 $likeUserEmails += $group.DisplayName
             }
         } else {
