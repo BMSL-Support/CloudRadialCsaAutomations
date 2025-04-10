@@ -81,6 +81,14 @@ else {
     $UserPrincipalName = $UserPrincipalName.Trim()
 }
 
+if ($LikeUserGroup -eq "@LikeUserGroup") {
+    $LikeUserGroup = $null
+}
+
+if ($LikeUserEmail -eq "@LikeUserEmail") {
+    $LikeUserEmail = $null
+}
+
 if (-Not $GroupNames -or $GroupNames.Count -eq 0 -or $GroupNames -eq "No groups available at this time.") {
     $GroupNames = @()
 }
