@@ -53,6 +53,9 @@ $Dept = $Request.Body.Dept
 $OfficePhone = $Request.Body.OfficePhone
 $MobilePhone = $Request.Body.MobilePhone
 $LicenseTypes = $Request.Body.LicenseTypes
+$GroupNames = $Request.Body.GroupNames
+$LikeUserGroup = $Request.Body.LikeUserGroup
+$LikeUserEmail = $Request.Body.LikeUserEmail
 $SecurityKey = $env:SecurityKey
 
 # Function to generate a random password
@@ -170,7 +173,10 @@ $body = @{
     TenantId          = $TenantId
     RequestedLicense  = $LicenseTypes
     Internal          = $true
-} 
+    LikeUserGroup     = $LikeUserGroup
+    LikeUserEmail     = $LikeUserEmail
+    GroupNames        = $GroupNames
+}
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
