@@ -163,6 +163,11 @@ if ($resultCode -Eq 200)
             continue
         }
 
+        if ($GroupObject.mailEnabled -eq $true -and $GroupObject.groupTypes -notcontains 'Unified') {
+            $message += "Group `"$GroupName`" is a mail distribution group or shared mailbox and needs to be added manually in the Exchange Online Management portal.`n"
+            continue
+        }
+
         $GroupMembers = Get-MgGroupMember -GroupId $GroupObject.Id
 
         if ($GroupMembers.Id -Contains $UserObject.Id) {
@@ -178,15 +183,15 @@ if ($resultCode -Eq 200)
     }
 
     if ($addedGroups.Count -gt 0) {
-        $message = "Added Groups:`n`n" + ($addedGroups -join "`n")
+        $message = "The following Teams and Security Groups were selected and successfully added:`n`n" + ($addedGroups -join "`n")
     }
 
     if ($likeUserGroups.Count -gt 0) {
-        $message += "`nAutomatically Assigned Groups:`n`n" + ($likeUserGroups -join "`n")
+        $message += "`nThe following groups were added based on mirroring the user `"$LikeUserGroup`":`n`n" + ($likeUserGroups -join "`n")
     }
 
     if ($likeUserEmails.Count -gt 0) {
-        $message += "`nGroups to be Manually Added in Exchange Online Management Portal:`n`n" + ($likeUserEmails -join "`n")
+        $message += "`nThe following are mail distribution group or shared mailbox mirrored from `"$LikeUserEmail`" need to be added manually in the Exchange Online Management portal:`n`n" + ($likeUserEmails -join "`n")
     }
 }
 
