@@ -1,114 +1,161 @@
 <# 
 .SYNOPSIS
-    This function adds Microsoft 365 licenses to an existing user based on the "RequestedLicense".
+    This function adds Microsoft 365 licenses to an existing user based on the "LicenseTypes" field in the JSON file.
+
 .DESCRIPTION
-    This function adds Microsoft 365 licenses to an existing user based on the "RequestedLicense".
+    This function adds Microsoft 365 licenses to an existing user based on the "LicenseTypes" field in the JSON file.
     The function requires the following environment variables to be set:
-    Ms365_AuthAppId - Application Id of the Azure AD application
-    Ms365_AuthSecretId - Secret Id of the Azure AD application
-    Ms365_TenantId - Tenant Id of the Azure AD application
-    SecurityKey - Optional, use this as an additional step to secure the function
+    - Ms365_AuthAppId: Application Id of the Azure AD application
+    - Ms365_AuthSecretId: Secret Id of the Azure AD application
+    - Ms365_TenantId: Tenant Id of the Azure AD application
+    - SecurityKey: Optional, used for additional security validation
+
     The function requires the following modules to be installed:
-    Microsoft.Graph     
+    - Microsoft.Graph
+
 .INPUTS
-    UserPrincipalName - string value of the user's principal name
-    TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
-    RequestedLicense - array of license types to be assigned to the user
-    TicketId - string value of the ticket id
-    JSON Structure
+    JSON Structure:
     {
-        "UserPrincipalName": "user@example.com",
-        "TenantId": "12345678-1234-1234-1234-123456789012",
-        "RequestedLicense": [
-            "Office 365 E3",
-            "Microsoft 365 Business Standard"
-        ],
-        "TicketId": "TICKET12345"
+        "TenantId": "@CompanyTenantId",
+        "TicketId": "@TicketId",
+        "AccountDetails": {
+            "UserPrincipalName": "@NUsersEmail"
+        },
+        "LicenseTypes": ["@LicenseType"]
     }
+
 .OUTPUTS
     JSON response with the following fields:
-    Message - Descriptive string of result
-    TicketId - TicketId passed in Parameters
-    ResultCode - 200 for success, 500 for failure
-    ResultStatus - "Success" or "Failure"
-    Internal - Boolean value indicating if the operation is internal
+    - Message: Descriptive string of result
+    - TicketId: TicketId passed in Parameters
+    - ResultCode: 200 for success, 500 for failure
+    - ResultStatus: "Success" or "Failure"
 #>
 
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-function Add-UserLicenses {
-    param (
-        [Parameter(Mandatory=$true)][string]$UserPrincipalName,
-        [Parameter(Mandatory=$true)][string]$AppId,
-        [Parameter(Mandatory=$true)][string]$SecretId,
-        [Parameter(Mandatory=$true)][string]$TenantId,
-        [Parameter(Mandatory=$false)][array]$RequestedLicense,
-        [Parameter(Mandatory=$true)][string]$TicketId
-    )
+Write-Host "Add Licenses function triggered."
 
+$resultCode = 200
+$message = ""
+
+# Parse the JSON structure
+$TenantId = $Request.Body.TenantId
+$TicketId = $Request.Body.TicketId
+$AccountDetails = $Request.Body.AccountDetails
+$UserPrincipalName = $AccountDetails.UserPrincipalName
+$LicenseTypes = $Request.Body.LicenseTypes
+$SecurityKey = $env:SecurityKey
+
+# Treat values starting with '@' as null
+if ($TenantId -like "@*") { $TenantId = $null }
+if ($TicketId -like "@*") { $TicketId = $null }
+if ($UserPrincipalName -like "@*") { $UserPrincipalName = $null }
+if ($LicenseTypes -is [Array]) {
+    $LicenseTypes = $LicenseTypes | Where-Object { $_ -notlike "@*" }
+} else {
+    $LicenseTypes = @()
+}
+
+if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
+    Write-Host "Invalid security key"
+    break
+}
+
+if (-Not $UserPrincipalName) {
+    $message = "UserPrincipalName cannot be blank."
+    $resultCode = 500
+} else {
+    $UserPrincipalName = $UserPrincipalName.Trim()
+}
+
+if (-Not $TenantId) {
+    $TenantId = $env:Ms365_TenantId
+} else {
+    $TenantId = $TenantId.Trim()
+}
+
+if (-Not $TicketId) {
+    $TicketId = ""
+}
+
+Write-Host "User Principal Name: $UserPrincipalName"
+Write-Host "Tenant Id: $TenantId"
+Write-Host "Ticket Id: $TicketId"
+Write-Host "License Types: $($LicenseTypes -join ', ')"
+
+if ($resultCode -eq 200) {
     try {
-        # Construct the basic authentication header
-        $securePassword = ConvertTo-SecureString -String $SecretId -AsPlainText -Force
-        $credential = New-Object System.Management.Automation.PSCredential($AppId, $securePassword)
-        Connect-MgGraph -ClientSecretCredential $credential -TenantId $TenantId -NoWelcome
+        $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+        $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-        if (-not $RequestedLicense) {
-            return "No license assignment was specified on the form."
-        }
+        Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
 
-        # Get all licenses in the tenant
-        $licenses = Get-MgSubscribedSku
+        if (-not $LicenseTypes) {
+            $message = "No licenses specified for assignment."
+        } else {
+            $user = Get-MgUser -UserId $UserPrincipalName
+            $assignedLicenses = $user.AssignedLicenses | ForEach-Object { $_.SkuId }
 
-        # Get license types with pretty names
-        $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+            $licenses = Get-MgSubscribedSku
+            $licenseTypes = Get-LicenseTypes -CsvUri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
 
-        $licensesToAdd = @()
-        $licensesNotAvailable = @()
-        $licensesPrettyNamesToAdd = @()
-        $licensesPrettyNamesNotAvailable = @()
+            $licensesToAdd = @()
+            $licensesNotAvailable = @()
+            $licensesPrettyNamesToAdd = @()
+            $licensesPrettyNamesNotAvailable = @()
 
-        $user = Get-MgUser -UserId $UserPrincipalName
-        $assignedLicenses = $user.AssignedLicenses | ForEach-Object { $_.SkuId }
-
-        foreach ($licenseType in $RequestedLicense) {
-            $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
-            if ($assignedLicenses -contains $skuId) {
-                continue
-            } else {
-                $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
-                if ($license) {
-                    if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
-                        $licensesToAdd += $licenseType
-                        $licensesPrettyNamesToAdd += $licenseType
+            foreach ($licenseType in $LicenseTypes) {
+                $skuId = $licenseTypes.GetEnumerator() | Where-Object { $_.Value -eq $licenseType } | Select-Object -ExpandProperty Key
+                if ($assignedLicenses -contains $skuId) {
+                    continue
+                } else {
+                    $license = $licenses | Where-Object { $_.SkuId -eq $skuId }
+                    if ($license) {
+                        if ($license.PrepaidUnits.Enabled -gt $license.ConsumedUnits) {
+                            $licensesToAdd += $skuId
+                            $licensesPrettyNamesToAdd += $licenseType
+                        } else {
+                            $licensesNotAvailable += $skuId
+                            $licensesPrettyNamesNotAvailable += $licenseType
+                        }
                     } else {
-                        $licensesNotAvailable += $licenseType
+                        $licensesNotAvailable += $skuId
                         $licensesPrettyNamesNotAvailable += $licenseType
                     }
-                } else {
-                    $licensesNotAvailable += $licenseType
-                    $licensesPrettyNamesNotAvailable += $licenseType
                 }
             }
+
+            if ($licensesToAdd.Count -gt 0) {
+                Set-MgUserLicense -UserId $UserPrincipalName -AddLicenses @{ SkuId = $licensesToAdd } -RemoveLicenses @()
+                $message = "The following licenses were successfully assigned: $($licensesPrettyNamesToAdd -join ', ')."
+            }
+
+            if ($licensesNotAvailable.Count -gt 0) {
+                $message += " The following licenses are not available: $($licensesPrettyNamesNotAvailable -join ', ')."
+            }
         }
-
-        $message = ""
-
-        if ($licensesToAdd.Count -gt 0) {
-            $message += "The following licenses will need to be assigned:`n`n $($licensesPrettyNamesToAdd -join '`n')."
-        }
-
-        if ($licensesNotAvailable.Count -gt 0) {
-            $message += " Please ask the admin team to order the following licenses: $($licensesPrettyNamesNotAvailable -join '`n')."
-        }
-
     } catch {
-        $message = "An error occurred while adding licenses: $($_ | Out-String)"
+        $message = "An error occurred while assigning licenses: $($_ | Out-String)"
+        $resultCode = 500
     }
-
-    return [string]$message
 }
+
+$body = @{
+    Message      = $message
+    TicketId     = $TicketId
+    ResultCode   = $resultCode
+    ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
+}
+
+# Associate values to output bindings by calling 'Push-OutputBinding'.
+Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+    StatusCode  = if ($resultCode -eq 200) { [HttpStatusCode]::OK } else { [HttpStatusCode]::InternalServerError }
+    Body        = $body
+    ContentType = "application/json"
+})
 
 function Get-LicenseTypes {
     param (
@@ -123,36 +170,3 @@ function Get-LicenseTypes {
 
     return $licenseTypes
 }
-
-# Ensure the UserPrincipalName exists in the body
-if ($Request.Body.UserPrincipalName) {
-    $UserPrincipalName = $Request.Body.UserPrincipalName
-} else {
-    Write-Host "ERROR: UserPrincipalName is missing from the request body."
-    exit
-}
-
-$TenantId = $Request.Body.TenantId
-$RequestedLicense = $Request.Body.RequestedLicense
-$TicketId = $Request.Body.TicketId
-$AppId = $env:Ms365_AuthAppId
-$SecretId = $env:Ms365_AuthSecretId
-
-$message = Add-UserLicenses -UserPrincipalName $UserPrincipalName -AppId $AppId -SecretId $SecretId -TenantId $TenantId -RequestedLicense $RequestedLicense -TicketId $TicketId
-
-# Clean up the message to remove unwanted text
-$message = $message -replace 'Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser', ''
-
-$body = @{
-    Message      = [string]$message
-    TicketId     = $TicketId
-    ResultCode   = 200
-    ResultStatus = "Success"
-    Internal     = $true
-}
-
-Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode  = [HttpStatusCode]::OK
-        Body        = $body
-        ContentType = "application/json"
-    })
