@@ -1,6 +1,6 @@
 <# 
 .SYNOPSIS
-    This function creates a new user in the tenant.
+    This function creates a new user in the M365 tenant.
 .DESCRIPTION
     This function creates a new user in the tenant.
     The function requires the following environment variables to be set:
@@ -13,16 +13,21 @@
 .INPUTS
     JSON Structure
     {
-        "TicketId": "123456",
-        "TenantId": "12345678-1234-1234-123456789012",
-        "NewUserFirstName": "John",
-        "NewUserLastName": "Doe",
-        "NewUserEmail": "john.doe@example.com",
-        "JobTitle": "Software Engineer",
-        "AddJobTitle": "Software Engineer",
-        "Dept": "Engineering",
-        "OfficePhone": "+1234567890",
-        "MobilePhone": "+0987654321"
+        "TenantId": "@CompanyTenantId",
+        "TicketId": "@TicketId",
+        "AccountDetails": {
+            "NewUserFirstName": "@NUsersFirstName",
+            "NewUserLastName": "@NUsersLastName",
+            "NewUserEmail": "@NUsersEmail",
+            "AdditionalAccountDetails": {
+                "JobTitle": "@NUsersJobTitle",
+                "AddJobTitle": "@NUsersAddJobTitle",
+                "Dept": "@NUsersDept",
+                "OfficePhone": "@NUsersOfficePhone",
+                "MobilePhone": "@NUsersMobilePhone"
+            }
+        },
+        "LicenseTypes": ["@LicenseType"]
     }
 .OUTPUTS
     JSON response with the following fields:
@@ -42,21 +47,36 @@ $resultCode = 200
 $message = ""
 $UserPrincipalName = ""
 
-$TicketId = $Request.Body.TicketId
+# Parse the JSON structure
 $TenantId = $Request.Body.TenantId
-$NewUserFirstName = $Request.Body.NewUserFirstName
-$NewUserLastName = $Request.Body.NewUserLastName
-$NewUserEmail = $Request.Body.NewUserEmail
-$JobTitle = $Request.Body.JobTitle
-$AddJobTitle = $Request.Body.AddJobTitle
-$Dept = $Request.Body.Dept
-$OfficePhone = $Request.Body.OfficePhone
-$MobilePhone = $Request.Body.MobilePhone
+$TicketId = $Request.Body.TicketId
+$AccountDetails = $Request.Body.AccountDetails
+$NewUserFirstName = $AccountDetails.NewUserFirstName
+$NewUserLastName = $AccountDetails.NewUserLastName
+$NewUserEmail = $AccountDetails.NewUserEmail
+$AdditionalAccountDetails = $AccountDetails.AdditionalAccountDetails
+$JobTitle = $AdditionalAccountDetails.JobTitle
+$AddJobTitle = $AdditionalAccountDetails.AddJobTitle
+$Dept = $AdditionalAccountDetails.Dept
+$OfficePhone = $AdditionalAccountDetails.OfficePhone
+$MobilePhone = $AdditionalAccountDetails.MobilePhone
 $LicenseTypes = $Request.Body.LicenseTypes
-$GroupNames = $Request.Body.GroupNames
-$LikeUserGroup = $Request.Body.LikeUserGroup
-$LikeUserEmail = $Request.Body.LikeUserEmail
 $SecurityKey = $env:SecurityKey
+
+# Treat values starting with '@' as null
+if ($TenantId -like "@*") { $TenantId = $null }
+if ($TicketId -like "@*") { $TicketId = $null }
+if ($NewUserFirstName -like "@*") { $NewUserFirstName = $null }
+if ($NewUserLastName -like "@*") { $NewUserLastName = $null }
+if ($NewUserEmail -like "@*") { $NewUserEmail = $null }
+if ($JobTitle -like "@*") { $JobTitle = $null }
+if ($AddJobTitle -like "@*") { $AddJobTitle = $null }
+if ($Dept -like "@*") { $Dept = $null }
+if ($OfficePhone -like "@*") { $OfficePhone = $null }
+if ($MobilePhone -like "@*") { $MobilePhone = $null }
+if ($LicenseTypes -is [Array]) {
+    $LicenseTypes = $LicenseTypes | Where-Object { $_ -notlike "@*" }
+}
 
 # Function to generate a random password
 function New-RandomPassword {
@@ -173,9 +193,6 @@ $body = @{
     TenantId          = $TenantId
     RequestedLicense  = $LicenseTypes
     Internal          = $true
-    LikeUserGroup     = $LikeUserGroup
-    LikeUserEmail     = $LikeUserEmail
-    GroupNames        = $GroupNames
 }
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
