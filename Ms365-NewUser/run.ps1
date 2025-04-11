@@ -1,42 +1,49 @@
 <# 
 .SYNOPSIS
-    This function creates a new user in the M365 tenant.
+    This script creates a new user in the Microsoft 365 tenant using details provided in a JSON payload.
+
 .DESCRIPTION
-    This function creates a new user in the tenant.
-    The function requires the following environment variables to be set:
-    Ms365_AuthAppId - Application Id of the service principal
-    Ms365_AuthSecretId - Secret Id of the service principal
-    Ms365_TenantId - Tenant Id of the Microsoft 365 tenant
-    SecurityKey - Optional, use this as an additional step to secure the function
-    The function requires the following modules to be installed:
-    Microsoft.Graph
+    This script automates the creation of a new user in the Microsoft 365 tenant. 
+    It reads user details from a JSON payload, including the tenant ID, ticket ID, account details, 
+    and license types. The script validates the input, generates a random password for the new user, 
+    and creates the user in the tenant using the Microsoft Graph API.
+
+    The script requires the following environment variables to be set:
+    - Ms365_AuthAppId: Application ID of the service principal
+    - Ms365_AuthSecretId: Secret ID of the service principal
+    - Ms365_TenantId: Tenant ID of the Microsoft 365 tenant
+    - SecurityKey: Optional, used for additional security validation
+
+    The script requires the Microsoft.Graph module to be installed.
+
 .INPUTS
-    JSON Structure
+    JSON Structure:
     {
         "TenantId": "@CompanyTenantId",
         "TicketId": "@TicketId",
         "AccountDetails": {
-            "NewUserFirstName": "@NUsersFirstName",
-            "NewUserLastName": "@NUsersLastName",
-            "NewUserEmail": "@NUsersEmail",
+            "GivenName": "@NUsersFirstName",
+            "Surname": "@NUsersLastName",
+            "UserPrincipalName": "@NUsersEmail",
             "AdditionalAccountDetails": {
                 "JobTitle": "@NUsersJobTitle",
-                "AddJobTitle": "@NUsersAddJobTitle",
-                "Dept": "@NUsersDept",
-                "OfficePhone": "@NUsersOfficePhone",
+                "City": "@NUsersAddJobTitle",
+                "Department": "@NUsersDept",
+                "BusinessPhones": "@NUsersOfficePhone",
                 "MobilePhone": "@NUsersMobilePhone"
             }
         },
         "LicenseTypes": ["@LicenseType"]
     }
+
 .OUTPUTS
     JSON response with the following fields:
-    Message - Descriptive string of result
-    TicketId - TicketId passed in Parameters
-    ResultCode - 200 for success, 500 for failure
-    ResultStatus - "Success" or "Failure"
-    UserPrincipalName - UPN of the new user created
-    TenantId - Tenant Id of the Microsoft 365 tenant
+    - Message: Descriptive string of the result
+    - TicketId: Ticket ID passed in the parameters
+    - ResultCode: 200 for success, 500 for failure
+    - ResultStatus: "Success" or "Failure"
+    - UserPrincipalName: UPN of the new user created
+    - TenantId: Tenant ID of the Microsoft 365 tenant
 #>
 
 using namespace System.Net
@@ -51,14 +58,14 @@ $UserPrincipalName = ""
 $TenantId = $Request.Body.TenantId
 $TicketId = $Request.Body.TicketId
 $AccountDetails = $Request.Body.AccountDetails
-$NewUserFirstName = $AccountDetails.NewUserFirstName
-$NewUserLastName = $AccountDetails.NewUserLastName
-$NewUserEmail = $AccountDetails.NewUserEmail
+$GivenName = $AccountDetails.GivenName
+$Surname = $AccountDetails.Surname
+$UserPrincipalName = $AccountDetails.UserPrincipalName
 $AdditionalAccountDetails = $AccountDetails.AdditionalAccountDetails
 $JobTitle = $AdditionalAccountDetails.JobTitle
-$AddJobTitle = $AdditionalAccountDetails.AddJobTitle
-$Dept = $AdditionalAccountDetails.Dept
-$OfficePhone = $AdditionalAccountDetails.OfficePhone
+$City = $AdditionalAccountDetails.City
+$Department = $AdditionalAccountDetails.Department
+$BusinessPhones = $AdditionalAccountDetails.BusinessPhones
 $MobilePhone = $AdditionalAccountDetails.MobilePhone
 $LicenseTypes = $Request.Body.LicenseTypes
 $SecurityKey = $env:SecurityKey
@@ -66,13 +73,13 @@ $SecurityKey = $env:SecurityKey
 # Treat values starting with '@' as null
 if ($TenantId -like "@*") { $TenantId = $null }
 if ($TicketId -like "@*") { $TicketId = $null }
-if ($NewUserFirstName -like "@*") { $NewUserFirstName = $null }
-if ($NewUserLastName -like "@*") { $NewUserLastName = $null }
-if ($NewUserEmail -like "@*") { $NewUserEmail = $null }
+if ($GivenName -like "@*") { $GivenName = $null }
+if ($Surname -like "@*") { $Surname = $null }
+if ($UserPrincipalName -like "@*") { $UserPrincipalName = $null }
 if ($JobTitle -like "@*") { $JobTitle = $null }
-if ($AddJobTitle -like "@*") { $AddJobTitle = $null }
-if ($Dept -like "@*") { $Dept = $null }
-if ($OfficePhone -like "@*") { $OfficePhone = $null }
+if ($City -like "@*") { $City = $null }
+if ($Department -like "@*") { $Department = $null }
+if ($BusinessPhones -like "@*") { $BusinessPhones = $null }
 if ($MobilePhone -like "@*") { $MobilePhone = $null }
 if ($LicenseTypes -is [Array]) {
     $LicenseTypes = $LicenseTypes | Where-Object { $_ -notlike "@*" }
@@ -96,11 +103,11 @@ try {
         throw "Invalid security key"
     }
 
-    if (-Not $NewUserEmail) {
-        throw "NewUserEmail cannot be blank."
+    if (-Not $UserPrincipalName) {
+        throw "UserPrincipalName cannot be blank."
     }
     else {
-        $NewUserEmail = $NewUserEmail.Trim()
+        $UserPrincipalName = $UserPrincipalName.Trim()
     }
 
     if (-Not $TenantId) {
@@ -120,34 +127,17 @@ try {
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
 
     # Generate the display name
-    $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
+    $DisplayName = "$GivenName $Surname"
 
-    # Extract the mailNickname from the NewUserEmail
-    $mailNickname = $NewUserEmail.Split("@")[0]
-
-    # Check and ignore fields if not specified or contain certain values
-    if ($JobTitle -eq "@NUsersJobTitle" -or -not $JobTitle) {
-        $JobTitle = $null
-    }
-    if ($OfficePhone -eq "@NUsersOfficePhone" -or -not $OfficePhone) {
-        $OfficePhone = $null
-    }
-    if ($AddJobTitle -eq "@NUsersAddJobTitle" -or -not $AddJobTitle) {
-        $AddJobTitle = $null
-    }
-    if ($Dept -eq "@NUsersDept" -or -not $Dept) {
-        $Dept = $null
-    }
-    if ($MobilePhone -eq "@NUsersMobilePhone" -or -not $MobilePhone) {
-        $MobilePhone = $null
-    }
+    # Extract the mailNickname from the UserPrincipalName
+    $mailNickname = $UserPrincipalName.Split("@")[0]
 
     # Create the new user
     $newUserParams = @{
-        UserPrincipalName = $NewUserEmail
-        DisplayName       = $NewUserDisplayName
-        GivenName         = $NewUserFirstName
-        Surname           = $NewUserLastName
+        UserPrincipalName = $UserPrincipalName
+        DisplayName       = $DisplayName
+        GivenName         = $GivenName
+        Surname           = $Surname
         MailNickname      = $mailNickname
         PasswordProfile   = @{ Password = $Password; ForceChangePasswordNextSignIn = $true }
         UsageLocation     = "GB"
@@ -157,14 +147,14 @@ try {
     if ($JobTitle) {
         $newUserParams.JobTitle = $JobTitle
     }
-    if ($AddJobTitle) {
-        $newUserParams.City = $AddJobTitle
+    if ($City) {
+        $newUserParams.City = $City
     }
-    if ($Dept) {
-        $newUserParams.Department = $Dept
+    if ($Department) {
+        $newUserParams.Department = $Department
     }
-    if ($OfficePhone) {
-        $newUserParams.BusinessPhones = $OfficePhone
+    if ($BusinessPhones) {
+        $newUserParams.BusinessPhones = $BusinessPhones
     }
     if ($MobilePhone) {
         $newUserParams.MobilePhone = $MobilePhone
@@ -173,7 +163,7 @@ try {
     $newUser = New-MgUser @newUserParams
 
     if ($newUser) {
-        $message = "New user $NewUserDisplayName created successfully.`r `rUsername: $NewUserEmail `rPassword: $Password"
+        $message = "New user $DisplayName created successfully.`r `rUsername: $UserPrincipalName `rPassword: $Password"
         $UserPrincipalName = $newUser.UserPrincipalName
     } else {
         throw "Failed to create new user."
@@ -192,7 +182,6 @@ $body = @{
     UserPrincipalName = $UserPrincipalName
     TenantId          = $TenantId
     RequestedLicense  = $LicenseTypes
-    Internal          = $true
 }
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
