@@ -112,7 +112,7 @@ if ($MirroredUserGroups) {
     $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
 
     if ($MirroredUserObject) {
-        $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
+        $UserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
         $UserId = $UserObject.Id
 
         $TeamsGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
@@ -151,7 +151,7 @@ if ($MirroredUserEmail) {
     $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
 
     if ($MirroredUserObject) {
-        $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
+        $UserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
         $UserId = $UserObject.Id
 
         $DistributionGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
