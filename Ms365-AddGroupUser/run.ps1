@@ -167,6 +167,10 @@ if ($SoftwareGroups.Count -eq 0) {
 }
 else {
     $addedSoftwareGroups = @()
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
     foreach ($Group in $SoftwareGroups) {
         $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
         if ($GroupObject.Id -ne "") {
@@ -185,6 +189,10 @@ if ($TeamsGroups.Count -eq 0) {
 }
 else {
     $addedTeamsGroups = @()
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
     foreach ($Group in $TeamsGroups) {
         $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
         if ($GroupObject.Id -ne "") {
@@ -203,6 +211,10 @@ if ($SecurityGroups.Count -eq 0) {
 }
 else {
     $addedSecurityGroups = @()
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
     foreach ($Group in $SecurityGroups) {
         $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
         if ($GroupObject.Id -ne "") {
