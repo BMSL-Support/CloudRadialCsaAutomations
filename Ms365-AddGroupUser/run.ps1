@@ -95,11 +95,11 @@ $Groups = $Request.Body.Groups
 $MirroredUserEmail = $Groups.MirroredUsers.MirroredUserEmail
 $MirroredUserGroups = $Groups.MirroredUsers.MirroredUserGroups
 
-if ($MirroredUserEmail -notmatch "^@") {
+if ($MirroredUserEmail -match "^@") {
     $MirroredUserEmail = $null
 }
 
-if ($MirroredUserGroups -notmatch "^@") {
+if ($MirroredUserGroups -match "^@") {
     $MirroredUserGroups = $null
 }
 
