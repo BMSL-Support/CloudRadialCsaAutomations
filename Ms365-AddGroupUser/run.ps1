@@ -1,60 +1,51 @@
 <# 
 
 .SYNOPSIS
+    
     This function is used to add a user to multiple distribution groups in Microsoft 365.
 
 .DESCRIPTION
+             
     This function is used to add a user to multiple distribution groups in Microsoft 365.
     
     The function requires the following environment variables to be set:
-    - Ms365_AuthAppId: Application Id of the service principal
-    - Ms365_AuthSecretId: Secret Id of the service principal
-    - Ms365_TenantId: Tenant Id of the Microsoft 365 tenant
-    
+        
+    Ms365_AuthAppId - Application Id of the service principal
+    Ms365_AuthSecretId - Secret Id of the service principal
+    Ms365_TenantId - Tenant Id of the Microsoft 365 tenant
+        
     The function requires the following modules to be installed:
-    - Microsoft.Graph
+        
+    Microsoft.Graph
 
 .INPUTS
-    JSON Structure:
+
+    UserPrincipalName - user principal name that exists in the tenant
+    GroupNames - array of group names that exist in the tenant
+    TenantId - string value of the tenant id, if blank uses the environment variable Ms365_TenantId
+    TicketId - optional - string value of the ticket id used for transaction tracking
+    SecurityKey - Optional, use this as an additional step to secure the function
+
+    JSON Structure
     {
-        "TenantId": "@CompanyTenantId",
-        "TicketId": "@TicketId",
-        "AccountDetails": {
-            "GivenName": "@NUsersFirstName",
-            "Surname": "@NUsersLastName",
-            "UserPrincipalName": "@NUsersEmail",
-            "AdditionalAccountDetails": {
-                "JobTitle": "@NUsersJobTitle",
-                "City": "@NUsersAddJobTitle",
-                "Department": "@NUsersDept",
-                "BusinessPhones": "@NUsersOfficePhone",
-                "MobilePhone": "@NUsersMobilePhone"
-            }
-        },
-        "LicenseTypes": ["@LicenseType"],
-        "Groups": {
-            "MirroredUsers": {
-                "MirroredUserEmail": "mirroreduser@domain.com",
-                "MirroredUserGroups": "mirroreduser@domain.com"
-            },
-            "Software": ["@NUSoftwareGroups"],
-            "Teams": ["@NUTeamNames"],
-            "Security": ["@NUSecGroupNames"],
-            "Distribution": ["@NUDistributionGroups"],
-            "SharedMailboxes": ["@NUSharedMailboxes"]
-        }
+        "UserPrincipalName": "user@domain.com",
+        "GroupNames": ["Group Name 1", "Group Name 2"],
+        "TenantId": "12345678-1234-1234-123456789012",
+        "TicketId": "123456",
+        "SecurityKey": "optional"
     }
 
-.OUTPUTS
+.OUTPUTS 
+
     JSON response with the following fields:
-    - Message: Descriptive string of result
-    - TicketId: TicketId passed in Parameters
-    - ResultCode: 200 for success, 500 for failure
-    - ResultStatus: "Success" or "Failure"
-    - Internal: Boolean value indicating if the operation is internal
+
+    Message - Descriptive string of result
+    TicketId - TicketId passed in Parameters
+    ResultCode - 200 for success, 500 for failure
+    ResultStatus - "Success" or "Failure"
+    Internal - Boolean value indicating if the operation is internal
 
 #>
-
 using namespace System.Net
 
 param($Request, $TriggerMetadata)
@@ -64,36 +55,40 @@ Write-Host "Add User to Groups function triggered."
 $resultCode = 200
 $message = ""
 
-# Parse the JSON structure
 $UserPrincipalName = $Request.Body.AccountDetails.UserPrincipalName
+$GroupNames = @()
 $TenantId = $Request.Body.TenantId
 $TicketId = $Request.Body.TicketId
 $SecurityKey = $env:SecurityKey
-$MirroredUserEmail = $Request.Body.Groups.MirroredUsers.MirroredUserEmail
-$MirroredUserGroups = $Request.Body.Groups.MirroredUsers.MirroredUserGroups
-
-# Treat values starting with '@' as null
-if ($UserPrincipalName -like "@*") { $UserPrincipalName = $null }
-if ($TenantId -like "@*") { $TenantId = $null }
-if ($TicketId -like "@*") { $TicketId = $null }
-if ($MirroredUserEmail -like "@*") { $MirroredUserEmail = $null }
-if ($MirroredUserGroups -like "@*") { $MirroredUserGroups = $null }
 
 if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
     Write-Host "Invalid security key"
-    break
+    break;
 }
 
 if (-Not $UserPrincipalName) {
     $message = "UserPrincipalName cannot be blank."
     $resultCode = 500
-} else {
+}
+else {
     $UserPrincipalName = $UserPrincipalName.Trim()
+}
+
+# Extract groups from the JSON structure
+$Groups = $Request.Body.Groups
+foreach ($GroupType in $Groups.PSObject.Properties.Name) {
+    $GroupNames += $Groups.$GroupType
+}
+
+if (-Not $GroupNames -or $GroupNames.Count -eq 0 -or $GroupNames -eq "No groups available at this time.") {
+    $message = "No groups specified on the form."
+    $resultCode = 500
 }
 
 if (-Not $TenantId) {
     $TenantId = $env:Ms365_TenantId
-} else {
+}
+else {
     $TenantId = $TenantId.Trim()
 }
 
@@ -102,10 +97,12 @@ if (-Not $TicketId) {
 }
 
 Write-Host "User Principal Name: $UserPrincipalName"
+Write-Host "Group Names: $($GroupNames -join ', ')"
 Write-Host "Tenant Id: $TenantId"
 Write-Host "Ticket Id: $TicketId"
 
-if ($resultCode -eq 200) {
+if ($resultCode -Eq 200)
+{
     $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
     $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
@@ -113,53 +110,44 @@ if ($resultCode -eq 200) {
 
     $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
 
+    Write-Host $UserObject.userPrincipalName
+    Write-Host $UserObject.Id
+
     if (-Not $UserObject) {
         $message = "Request failed. User `"$UserPrincipalName`" could not be found."
         $resultCode = 500
     }
 
     $addedGroups = @()
-    $manualGroups = @()
 
-    # Handle MirroredUserEmail and MirroredUserGroups
-    if ($MirroredUserEmail) {
-        $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
-        if ($MirroredUserObject) {
-            $MirroredGroups = Get-MgUserMemberGroup -UserId $MirroredUserObject.Id -SecurityEnabledOnly $false
-            foreach ($GroupId in $MirroredGroups) {
-                $GroupObject = Get-MgGroup -GroupId $GroupId
-                if ($GroupObject.mailEnabled -eq $true -and $GroupObject.groupTypes -notcontains 'Unified') {
-                    $manualGroups += $GroupObject.DisplayName
-                } else {
-                    New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
-                    $addedGroups += $GroupObject.DisplayName
-                }
-            }
-        } else {
-            $message += "Mirrored user `"$MirroredUserEmail`" could not be found.`n"
+    foreach ($GroupName in $GroupNames) {
+        $GroupObject = Get-MgGroup -Filter "displayName eq '$GroupName'"
+
+        Write-Host $GroupObject.DisplayName
+        Write-Host $GroupObject.Id
+
+        if (-Not $GroupObject) {
+            $message += "Request failed. Group `"$GroupName`" could not be found to add user `"$UserPrincipalName`" to.`n"
+            $resultCode = 500
+            continue
         }
-    }
 
-    if ($MirroredUserGroups) {
-        $GroupObject = Get-MgGroup -Filter "mail eq '$MirroredUserGroups'"
-        if ($GroupObject) {
-            if ($GroupObject.mailEnabled -eq $true -and $GroupObject.groupTypes -notcontains 'Unified') {
-                $manualGroups += $GroupObject.DisplayName
-            } else {
-                New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
-                $addedGroups += $GroupObject.DisplayName
-            }
-        } else {
-            $message += "Mirrored group `"$MirroredUserGroups`" could not be found.`n"
+        $GroupMembers = Get-MgGroupMember -GroupId $GroupObject.Id
+
+        if ($GroupMembers.Id -Contains $UserObject.Id) {
+            $message += "Request failed. User `"$UserPrincipalName`" is already a member of group `"$GroupName`".`n"
+            $resultCode = 500
+            continue
+        } 
+
+        if ($resultCode -Eq 200) {
+            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserObject.Id
+            $addedGroups += $GroupName
         }
     }
 
     if ($addedGroups.Count -gt 0) {
-        $message += "The following groups were successfully added:`n`n" + ($addedGroups -join "`n")
-    }
-
-    if ($manualGroups.Count -gt 0) {
-        $message += "`nThe following groups need to be added manually in the Exchange Online Management portal:`n`n" + ($manualGroups -join "`n")
+        $message = "Added Groups:`n`n" + ($addedGroups -join "`n")
     }
 }
 
@@ -168,12 +156,12 @@ $body = @{
     TicketId = $TicketId
     ResultCode = $resultCode
     ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
-    Internal = $true
-}
+    Internal     = $true
+} 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-    StatusCode = if ($resultCode -eq 200) { [HttpStatusCode]::OK } else { [HttpStatusCode]::InternalServerError }
+    StatusCode = [HttpStatusCode]::OK
     Body = $body
     ContentType = "application/json"
 })
