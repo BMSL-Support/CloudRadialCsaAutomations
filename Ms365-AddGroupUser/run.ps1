@@ -96,149 +96,132 @@ $MirroredUserEmail = $Groups.MirroredUsers.MirroredUserEmail
 $MirroredUserGroups = $Groups.MirroredUsers.MirroredUserGroups
 
 if ($MirroredUserEmail -match "^@") {
-    $MirroredUserEmail = $null
+    $MirroredUserEmail = $null
 }
 
 if ($MirroredUserGroups -match "^@") {
-    $MirroredUserGroups = $null
+    $MirroredUserGroups = $null
 }
 
+
 if ($MirroredUserGroups) {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
 
-    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
+    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
 
-    if ($MirroredUserObject) {
-        $UserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
-        $UserId = $UserObject.Id
+    if ($MirroredUserObject) {
+        $TeamsGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
+        $SecurityGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -notcontains 'Unified' }
+        $DistributionGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
+        $SharedMailboxes += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
 
-        $TeamsGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
-        $SecurityGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -notcontains 'Unified' }
+        $message += "Groups were mirrored from $MirroredUserGroups.`n"
+    }
+}
 
-        $addedTeamsGroups = @()
-        $addedSecurityGroups = @()
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-        foreach ($Group in $TeamsGroups) {
-            $GroupObject = Get-MgGroup -Filter "displayName eq '$Group.DisplayName'"
-            if ($GroupObject.Id -ne "") {
-                New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserId
-                $addedTeamsGroups += $Group.DisplayName
-            }
-        }
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
 
-        foreach ($Group in $SecurityGroups) {
-            $GroupObject = Get-MgGroup -Filter "displayName eq '$Group.DisplayName'"
-            if ($GroupObject.Id -ne "") {
-                New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserId
-                $addedSecurityGroups += $Group.DisplayName
-            }
-        }
+    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
 
-        $message += "$UserPrincipalName was added to the following Teams based on ${MirroredUserGroups}:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
-        $message += "$UserPrincipalName was added to the following Security Groups based on ${MirroredUserGroups}:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
-    }
+    if ($MirroredUserObject) {
+        $TeamsGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
+        $SecurityGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -notcontains 'Unified' }
+
+        $addedTeamsGroups = @()
+        $addedSecurityGroups = @()
+
+        foreach ($Group in $TeamsGroups) {
+            if ($Group.Id -ne "") {
+                New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+                $addedTeamsGroups += $Group.DisplayName
+            }
+        }
+
+        foreach ($Group in $SecurityGroups) {
+            if ($Group.Id -ne "") {
+                New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+                $addedSecurityGroups += $Group.DisplayName
+            }
+        }
+
+        $message += "$UserPrincipalName was added to the following Teams based on ${MirroredUserGroups}:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
+        $message += "$UserPrincipalName was added to the following Security Groups based on ${MirroredUserGroups}:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
+    }
 }
 
 if ($MirroredUserEmail) {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
 
-    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
+    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
 
-    if ($MirroredUserObject) {
-        $UserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
-        $UserId = $UserObject.Id
+    if ($MirroredUserObject) {
+        $DistributionGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
+        $SharedMailboxes = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
 
-        $DistributionGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
-        $SharedMailboxes = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
-
-        $message += "The following actions will need to be completed manually in the Exchange Online Admin Centre -`n`n"
-        $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on ${MirroredUserEmail}:`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
-        $message += "$UserPrincipalName will need to be given access to the following Shared Mailboxes based on ${MirroredUserEmail}:`n" + ($SharedMailboxes.DisplayName -join "`n") + "`n`n"
-    }
+        $message += "The following actions will need to be completed manually in the Exchange Online Admin Centre -`n`n"
+        $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on ${MirroredUserEmail}:`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
+        $message += "$UserPrincipalName will need to be given access to the following Shared Mailboxes based on  ${MirroredUserEmail}:`n" + ($SharedMailboxes.DisplayName -join "`n") + "`n`n"
+    }
 }
 
 # Handle Software groups
 $SoftwareGroups = $Groups.Software | Where-Object { $_ -notmatch "^@" -and $_ -ne "No groups available at this time." }
 
 if ($SoftwareGroups.Count -eq 0) {
-    $message += "No software groups were defined in the request.`n`n"
+    $message += "No software groups were defined in the request.`n`n"
 }
 else {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-    
-    $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
-    $UserId = $UserObject.Id
-
-    $addedSoftwareGroups = @()
-    foreach ($Group in $SoftwareGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserId
-            $addedSoftwareGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following software groups:`n" + ($addedSoftwareGroups -join "`n") + "`n`n"
+    $addedSoftwareGroups = @()
+    foreach ($Group in $SoftwareGroups) {
+        if ($Group.Id -ne "") {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            $addedSoftwareGroups += $Group
+        }
+    }
+    $message += "$UserPrincipalName was added to the following software groups:`n" + ($addedSoftwareGroups -join "`n") + "`n`n"
 }
 
 # Handle Teams groups
 $TeamsGroups = $Groups.Teams | Where-Object { $_ -notmatch "^@" -and $_ -ne "No groups available at this time." }
 
 if ($TeamsGroups.Count -eq 0) {
-    $message += "No Teams were defined in the request.`n`n"
+    $message += "No Teams were defined in the request.`n`n"
 }
 else {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-    
-    $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
-    $UserId = $UserObject.Id
-
-    $addedTeamsGroups = @()
-    foreach ($Group in $TeamsGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserId
-            $addedTeamsGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following Teams:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
+    $addedTeamsGroups = @()
+    foreach ($Group in $TeamsGroups) {
+        if ($Group.Id -ne "") {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            $addedTeamsGroups += $Group
+        }
+    }
+    $message += "$UserPrincipalName was added to the following Teams:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
 }
 
 # Handle Security groups
 $SecurityGroups = $Groups.Security | Where-Object { $_ -notmatch "^@" -and $_ -ne "No groups available at this time." }
 
 if ($SecurityGroups.Count -eq 0) {
-    $message += "No security groups were defined in the request.`n`n"
+    $message += "No security groups were defined in the request.`n`n"
 }
 else {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-    
-    $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
-    $UserId = $UserObject.Id
-
-    $addedSecurityGroups = @()
-    foreach ($Group in $SecurityGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserId
-            $addedSecurityGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following security groups:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
+    $addedSecurityGroups = @()
+    foreach ($Group in $SecurityGroups) {
+        if ($Group.Id -ne "") {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            $addedSecurityGroups += $Group
+        }
+    }
+    $message += "$UserPrincipalName was added to the following security groups:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
 }
 
 # Handle Distribution groups
