@@ -119,17 +119,21 @@ if ($MirroredUserGroups) {
         $addedSecurityGroups = @()
 
         foreach ($Group in $TeamsGroups) {
-            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
-            $addedTeamsGroups += $Group.DisplayName
+            if ($Group.Id) {
+                New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+                $addedTeamsGroups += $Group.DisplayName
+            }
         }
 
         foreach ($Group in $SecurityGroups) {
-            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
-            $addedSecurityGroups += $Group.DisplayName
+            if ($Group.Id) {
+                New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+                $addedSecurityGroups += $Group.DisplayName
+            }
         }
 
-        $message += "$UserPrincipalName was added to the following Teams based on `"$MirroredUserGroups`":`n" + ($addedTeamsGroups -join "`n") + "`n`n"
-        $message += "$UserPrincipalName was added to the following Security Groups based on `"$MirroredUserGroups`":`n" + ($addedSecurityGroups -join "`n") + "`n`n"
+        $message += "$UserPrincipalName was added to the following Teams based on ${MirroredUserGroups}:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
+        $message += "$UserPrincipalName was added to the following Security Groups based on ${MirroredUserGroups}`n" + ($addedSecurityGroups -join "`n") + "`n`n"
     }
 }
 
@@ -146,8 +150,8 @@ if ($MirroredUserEmail) {
         $SharedMailboxes = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
 
         $message += "The following actions will need to be completed manually in the Exchange Online Admin Centre -`n`n"
-        $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on `"$MirroredUseremail`":`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
-        $message += "$UserPrincipalName will need to be given access to the following Shared Mailboxes based on `"$MirroredUseremail`":`n" + ($SharedMailboxes.DisplayName -join "`n") + "`n`n"
+        $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on ${MirroredUserEmail}:`n" + ($DistributionGroups | ForEach-Object { $_.DisplayName } -join "`n") + "`n`n"
+        $message += "$UserPrincipalName will need to be given access to the following Shared Mailboxes based on ${MirroredUserEmail}:`n" + ($SharedMailboxes | ForEach-Object { $_.DisplayName } -join "`n") + "`n`n"
     }
 }
 
@@ -160,8 +164,10 @@ if ($SoftwareGroups.Count -eq 0) {
 else {
     $addedSoftwareGroups = @()
     foreach ($Group in $SoftwareGroups) {
-        New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
-        $addedSoftwareGroups += $Group
+        if ($Group.Id) {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            $addedSoftwareGroups += $Group
+        }
     }
     $message += "$UserPrincipalName was added to the following software groups:`n" + ($addedSoftwareGroups -join "`n") + "`n`n"
 }
@@ -175,8 +181,10 @@ if ($TeamsGroups.Count -eq 0) {
 else {
     $addedTeamsGroups = @()
     foreach ($Group in $TeamsGroups) {
-        New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
-        $addedTeamsGroups += $Group
+        if ($Group.Id) {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            $addedTeamsGroups += $Group
+        }
     }
     $message += "$UserPrincipalName was added to the following Teams:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
 }
@@ -190,8 +198,10 @@ if ($SecurityGroups.Count -eq 0) {
 else {
     $addedSecurityGroups = @()
     foreach ($Group in $SecurityGroups) {
-        New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
-        $addedSecurityGroups += $Group
+        if ($Group.Id) {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            $addedSecurityGroups += $Group
+        }
     }
     $message += "$UserPrincipalName was added to the following security groups:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
 }
