@@ -170,9 +170,11 @@ if ($SoftwareGroups.Count -eq 0) {
     $message += "No software groups were defined in the request.`n`n"
 }
 else {
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
+    
     $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
     $UserId = $UserObject.Id
 
@@ -194,9 +196,11 @@ if ($TeamsGroups.Count -eq 0) {
     $message += "No Teams were defined in the request.`n`n"
 }
 else {
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-     
+    
     $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
     $UserId = $UserObject.Id
 
@@ -218,7 +222,9 @@ if ($SecurityGroups.Count -eq 0) {
     $message += "No security groups were defined in the request.`n`n"
 }
 else {
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
+    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
+
     Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
     
     $UserObject = Get-MgUser -Filter "userPrincipalName eq '$UserPrincipalName'"
