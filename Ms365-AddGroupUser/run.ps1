@@ -34,7 +34,6 @@
         "TenantId": "12345678-1234-1234-123456789012",
         "TicketId": "123456",
         "SecurityKey": "optional"
-    }
 
 .OUTPUTS 
 
@@ -153,7 +152,6 @@ if ($MirroredUserGroups) {
         $message += "$UserPrincipalName was added to the following Teams based on ${MirroredUserGroups}:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
         $message += "$UserPrincipalName was added to the following Security Groups based on ${MirroredUserGroups}:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
     }
-}
 
 if ($MirroredUserEmail) {
     $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
