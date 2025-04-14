@@ -137,8 +137,8 @@ if ($MirroredUserGroups) {
             }
         }
 
-        $message += "$UserPrincipalName was added to the following Teams based on $MirroredUserGroups:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
-        $message += "$UserPrincipalName was added to the following Security Groups based on $MirroredUserGroups:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
+        $message += "$UserPrincipalName was added to the following Teams based on ${MirroredUserGroups}:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
+        $message += "$UserPrincipalName was added to the following Security Groups based on ${MirroredUserGroups}:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
     }
 }
 
@@ -158,8 +158,8 @@ if ($MirroredUserEmail) {
         $SharedMailboxes = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
 
         $message += "The following actions will need to be completed manually in the Exchange Online Admin Centre -`n`n"
-        $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on $MirroredUserEmail:`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
-        $message += "$UserPrincipalName will need to be given access to the following Shared Mailboxes based on $MirroredUserEmail:`n" + ($SharedMailboxes.DisplayName -join "`n") + "`n`n"
+        $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on ${MirroredUserEmail}:`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
+        $message += "$UserPrincipalName will need to be given access to the following Shared Mailboxes based on ${MirroredUserEmail}:`n" + ($SharedMailboxes.DisplayName -join "`n") + "`n`n"
     }
 }
 
