@@ -91,147 +91,7 @@ Write-Host "Ticket Id: $TicketId"
 
 $Groups = $Request.Body.Groups
 
-
-# Initialize group lists
-$TeamsGroups = @()
-$SecurityGroups = @()
-$DistributionGroups = @()
-$SharedMailboxes = @()
-
 # Handle MirroredUsers
-$MirroredUserEmail = $Groups.MirroredUsers.MirroredUserEmail
-$MirroredUserGroups = $Groups.MirroredUsers.MirroredUserGroups
-
-if ($MirroredUserEmail -match "^@") {
-    $MirroredUserEmail = $null
-}
-
-if ($MirroredUserGroups -match "^@") {
-    $MirroredUserGroups = $null
-}
-
-if ($MirroredUserGroups) {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-
-    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
-
-    if ($MirroredUserObject) {
-        $TeamsGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
-        $SecurityGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -notcontains 'Unified' }
-
-        $message += "Groups were mirrored from $MirroredUserGroups.`n"
-    }
-}
-
-if ($MirroredUserEmail) {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-
-    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserEmail'"
-
-    if ($MirroredUserObject) {
-        $DistributionGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
-        $SharedMailboxes += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
-
-        $message += "Groups were mirrored from $MirroredUserEmail.`n"
-    }
-}
-
-# Handle Software groups
-$SoftwareGroups = $Groups.Software | Where-Object { $_ -notmatch "^@" -and $_ -ne "No groups available at this time." }
-
-if ($SoftwareGroups.Count -eq 0) {
-    $message += "No software groups were defined in the request.`n`n"
-}
-else {
-    $addedSoftwareGroups = @()
-    foreach ($Group in $SoftwareGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
-            $addedSoftwareGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following software groups:`n" + ($addedSoftwareGroups -join "`n") + "`n`n"
-}
-
-# Handle Teams groups
-$TeamsGroups += $Groups.Teams | Where-Object { $_ -notmatch "^@" -and $_ -ne "No groups available at this time." }
-
-if ($TeamsGroups.Count -eq 0) {
-    $message += "No Teams were defined in the request.`n`n"
-}
-else {
-    $addedTeamsGroups = @()
-    foreach ($Group in $TeamsGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
-            $addedTeamsGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following Teams:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
-}
-
-# Handle Security groups
-$SecurityGroups += $Groups.Security | Where-Object { $_ -notmatch "^@" -and $_ -ne "No groups available at this time." }
-
-if ($SecurityGroups.Count -eq 0) {
-    $message += "No security groups were defined in the request.`n`n"
-}
-else {
-    $addedSecurityGroups = @()
-    foreach ($Group in $SecurityGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
-            $addedSecurityGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following security groups:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
-}
-
-# Handle Distribution groups
-$DistributionGroups = $Groups.Distribution | Where-Object { $_.MailEnabled -eq $true -and $_.GroupTypes -notcontains 'Unified' -and $_.Mail -notlike "*.onmicrosoft.com" }
-
-if ($DistributionGroups.Count -eq 0) {
-    $message += "No distribution groups were defined in the request.`n`n"
-}
-else {
-    $addedDistributionGroups = @()
-    foreach ($Group in $DistributionGroups) {
-        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
-        if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
-            $addedDistributionGroups += $Group
-        }
-    }
-    $message += "$UserPrincipalName was added to the following distribution groups:`n" + ($addedDistributionGroups -join "`n") + "`n`n"
-}
-
-# Handle Shared Mailboxes
-$SharedMailboxes = $Groups.SharedMailboxes
-
-if ($SharedMailboxes.Count -eq 0) {
-    $message += "No shared mailboxes were defined in the request.`n`n"
-}
-else {
-    $addedSharedMailboxes = @()
-    foreach ($Mailbox in $SharedMailboxes) {
-        $MailboxObject = Get-MgUser -Filter "displayName eq '$Mailbox'"
-        if ($MailboxObject.Id -ne "") {
-            New-MgUserMailboxSetting -UserId $MailboxObject.Id -AccessRights "FullAccess" -UserPrincipalName $UserPrincipalName
-            $addedSharedMailboxes += $Mailbox
-        }
-    }
-    $message += "$UserPrincipalName was given access to the following shared mailboxes:`n" + ($addedSharedMailboxes -join "`n") + "`n`n"
-}
-
 $MirroredUserEmail = $Groups.MirroredUsers.MirroredUserEmail
 $MirroredUserGroups = $Groups.MirroredUsers.MirroredUserGroups
 
@@ -265,14 +125,14 @@ if ($MirroredUserGroups) {
 
         foreach ($Group in $TeamsGroups) {
             if ($Group.Id -ne "") {
-                New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+                # New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
                 $addedTeamsGroups += $Group.DisplayName
             }
         }
 
         foreach ($Group in $SecurityGroups) {
             if ($Group.Id -ne "") {
-                New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+                # New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
                 $addedSecurityGroups += $Group.DisplayName
             }
         }
@@ -314,7 +174,7 @@ else {
     $addedSoftwareGroups = @()
     foreach ($Group in $SoftwareGroups) {
         if ($Group.Id -ne "") {
-            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            # New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
             $addedSoftwareGroups += $Group
         }
     }
@@ -331,7 +191,7 @@ else {
     $addedTeamsGroups = @()
     foreach ($Group in $TeamsGroups) {
         if ($Group.Id -ne "") {
-            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            # New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
             $addedTeamsGroups += $Group
         }
     }
@@ -348,7 +208,7 @@ else {
     $addedSecurityGroups = @()
     foreach ($Group in $SecurityGroups) {
         if ($Group.Id -ne "") {
-            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
+            # New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $UserPrincipalName
             $addedSecurityGroups += $Group
         }
     }
@@ -367,7 +227,7 @@ else {
     foreach ($Group in $DistributionGroups) {
         $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
         if ($GroupObject.Id -ne "") {
-            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
+            # New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
             $addedDistributionGroups += $Group
         }
     }
@@ -393,7 +253,7 @@ else {
     foreach ($Mailbox in $SharedMailboxes) {
         $MailboxObject = Get-MgUser -Filter "displayName eq '$Mailbox'"
         if ($MailboxObject.Id -ne "") {
-            New-MgUserMailboxSetting -UserId $MailboxObject.Id -AccessRights "FullAccess" -UserPrincipalName $UserPrincipalName
+            # New-MgUserMailboxSetting -UserId $MailboxObject.Id -AccessRights "FullAccess" -UserPrincipalName $UserPrincipalName
             $addedSharedMailboxes += $Mailbox
         }
     }
