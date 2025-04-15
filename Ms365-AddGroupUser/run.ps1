@@ -156,8 +156,7 @@ if ($MirroredUserEmail) {
 
         
         Write-Output "Distribution Groups: $DistributionGroups"
-        Write-Output "Shared Mailboxes: $SharedMailboxes
-
+        Write-Output "Shared Mailboxes: $SharedMailboxes"
 
         $message += "The following actions will need to be completed manually in the Exchange Online Admin Centre -`n`n"
         $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on ${MirroredUserEmail}:`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
