@@ -115,6 +115,11 @@ if ($MirroredUserGroups) {
         $TeamsGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
         $SecurityGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -notcontains 'Unified' }
 
+        
+        Write-Output "Teams Groups: $TeamsGroups"
+        Write-Output "Security Groups: $SecurityGroups"
+
+
         $addedTeamsGroups = @()
         $addedSecurityGroups = @()
 
@@ -148,6 +153,11 @@ if ($MirroredUserEmail) {
     if ($MirroredUserObject) {
         $DistributionGroups = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
         $SharedMailboxes = Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
+
+        
+        Write-Output "Distribution Groups: $DistributionGroups"
+        Write-Output "Shared Mailboxes: $SharedMailboxes
+
 
         $message += "The following actions will need to be completed manually in the Exchange Online Admin Centre -`n`n"
         $message += "$UserPrincipalName will need to be added to the following Exchange Groups based on ${MirroredUserEmail}:`n" + ($DistributionGroups.DisplayName -join "`n") + "`n`n"
