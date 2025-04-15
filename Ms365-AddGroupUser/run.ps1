@@ -34,6 +34,7 @@
         "TenantId": "12345678-1234-1234-123456789012",
         "TicketId": "123456",
         "SecurityKey": "optional"
+    }
 
 .OUTPUTS 
 
@@ -102,25 +103,7 @@ if ($MirroredUserGroups -match "^@") {
     $MirroredUserGroups = $null
 }
 
-
 if ($MirroredUserGroups) {
-    $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
-    $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
-
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
-
-    $MirroredUserObject = Get-MgUser -Filter "userPrincipalName eq '$MirroredUserGroups'"
-
-    if ($MirroredUserObject) {
-        $TeamsGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }
-        $SecurityGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.GroupTypes -notcontains 'Unified' }
-        $DistributionGroups += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $true }
-        $SharedMailboxes += Get-MgUserMemberOf -UserId $MirroredUserObject.Id | Where-Object { $_.ODataType -eq '#microsoft.graph.group' -and $_.MailEnabled -eq $false }
-
-        $message += "Groups were mirrored from $MirroredUserGroups.`n"
-    }
-}
-
     $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
     $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
@@ -152,6 +135,7 @@ if ($MirroredUserGroups) {
         $message += "$UserPrincipalName was added to the following Teams based on ${MirroredUserGroups}:`n" + ($addedTeamsGroups -join "`n") + "`n`n"
         $message += "$UserPrincipalName was added to the following Security Groups based on ${MirroredUserGroups}:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
     }
+}
 
 if ($MirroredUserEmail) {
     $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
@@ -222,7 +206,25 @@ else {
     $message += "$UserPrincipalName was added to the following security groups:`n" + ($addedSecurityGroups -join "`n") + "`n`n"
 }
 
+
 # Handle Distribution groups
+$DistributionGroups = $Groups.Distribution | Where-Object { $_.MailEnabled -eq $true -and $_.GroupTypes -notcontains 'Unified' -and $_.Mail -notlike "*.onmicrosoft.com" }
+
+if ($DistributionGroups.Count -eq 0) {
+    $message += "No distribution groups were defined in the request.`n`n"
+}
+else {
+    $addedDistributionGroups = @()
+    foreach ($Group in $DistributionGroups) {
+        $GroupObject = Get-MgGroup -Filter "displayName eq '$Group'"
+        if ($GroupObject.Id -ne "") {
+            New-MgGroupMember -GroupId $GroupObject.Id -DirectoryObjectId $UserPrincipalName
+            $addedDistributionGroups += $Group
+        }
+    }
+    $message += "$UserPrincipalName was added to the following distribution groups:`n" + ($addedDistributionGroups -join "`n") + "`n`n"
+}
+
 $DistributionGroups = $Groups.Distribution
 
 if ($DistributionGroups.Count -gt 0) {
@@ -230,7 +232,25 @@ if ($DistributionGroups.Count -gt 0) {
     $message += "$UserPrincipalName will need to be added to the following Exchange Groups:`n" + ($DistributionGroups -join "`n") + "`n`n"
 }
 
+
 # Handle Shared Mailboxes
+$SharedMailboxes = $Groups.SharedMailboxes
+
+if ($SharedMailboxes.Count -eq 0) {
+    $message += "No shared mailboxes were defined in the request.`n`n"
+}
+else {
+    $addedSharedMailboxes = @()
+    foreach ($Mailbox in $SharedMailboxes) {
+        $MailboxObject = Get-MgUser -Filter "displayName eq '$Mailbox'"
+        if ($MailboxObject.Id -ne "") {
+            New-MgUserMailboxSetting -UserId $MailboxObject.Id -AccessRights "FullAccess" -UserPrincipalName $UserPrincipalName
+            $addedSharedMailboxes += $Mailbox
+        }
+    }
+    $message += "$UserPrincipalName was given access to the following shared mailboxes:`n" + ($addedSharedMailboxes -join "`n") + "`n`n"
+}
+
 $SharedMailboxes = $Groups.SharedMailboxes
 
 if ($SharedMailboxes.Count -gt 0) {
