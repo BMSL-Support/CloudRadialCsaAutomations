@@ -29,19 +29,13 @@
 
     JSON Structure
 
-{
-  "TicketId": "123456",
-  "TenantId": "12345678-1234-1234-123456789012",
-  "NewUserFirstName": "John",
-  "NewUserLastName": "Doe",
-  "NewUserEmail": "john.doe@example.com",
-  "JobTitle": "Software Engineer",
-  "AddJobTitle": "Software Engineer",
-  "Dept": "Engineering",
-  "OfficePhone": "+1234567890",
-  "MobilePhone": "+0987654321",
-  "LikeUserGroup": "existinguser@example.com"
-}
+    {
+        "UserEmail": "email@address.com",
+        "GroupName": "Group Name",
+        "TenantId": "12345678-1234-1234-123456789012",
+        "TicketId": "123456,
+        "SecurityKey", "optional"
+    }
 
 .OUTPUTS
 
@@ -58,157 +52,126 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
+Write-Host "Create User Like Another User function triggered."
+
 $resultCode = 200
 $message = ""
-$UserPrincipalName = ""
 
-$TicketId = $Request.Body.TicketId
-$TenantId = $Request.Body.TenantId
+$NewUserEmail = $Request.Body.NewUserEmail
+$ExistingUserEmail = $Request.Body.ExistingUserEmail
 $NewUserFirstName = $Request.Body.NewUserFirstName
 $NewUserLastName = $Request.Body.NewUserLastName
-$NewUserEmail = $Request.Body.NewUserEmail
-$JobTitle = $Request.Body.JobTitle
-$AddJobTitle = $Request.Body.AddJobTitle
-$Dept = $Request.Body.Dept
-$OfficePhone = $Request.Body.OfficePhone
-$MobilePhone = $Request.Body.MobilePhone
-$LikeUserGroup = $Request.Body.LikeUserGroup
+$NewUserDisplayName = $Request.Body.NewUserDisplayName
+$TenantId = $Request.Body.TenantId
+$TicketId = $Request.Body.TicketId
 $SecurityKey = $env:SecurityKey
 
-# Function to generate a random password
-function New-RandomPassword {
-    param (
-        [int]$length = 12
-    )
-
-    $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#%&*()'
-    $password = -join ((1..$length) | ForEach-Object { $characters[(Get-Random -Minimum 0 -Maximum $characters.Length)] })
-    return $password
+if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
+    Write-Host "Invalid security key"
+    break;
 }
 
-$password = New-RandomPassword -length 16
+if (-Not $userEmail) {
+    $message = "UserEmail cannot be blank."
+    $resultCode = 500
+}
+else {
+    $UserEmail = $UserEmail.Trim()
+}
 
-try {
-    if ($SecurityKey -And $SecurityKey -ne $Request.Headers.SecurityKey) {
-        throw "Invalid security key"
-    }
+if (-Not $groupName) {
+    $message = "GroupName cannot be blank."
+    $resultCode = 500
+}
+else {
+    $GroupName = $GroupName.Trim()
+}
 
-    if (-Not $NewUserEmail) {
-        throw "NewUserEmail cannot be blank."
-    }
-    else {
-        $NewUserEmail = $NewUserEmail.Trim()
-    }
+if (-Not $TenantId) {
+    $TenantId = $env:Ms365_TenantId
+}
+else {
+    $TenantId = $TenantId.Trim()
+}
 
-    if (-Not $TenantId) {
-        $TenantId = $env:Ms365_TenantId
-    }
-    else {
-        $TenantId = $TenantId.Trim()
-    }
+if (-Not $TicketId) {
+    $TicketId = ""
+}
 
-    if (-Not $TicketId) {
-        $TicketId = ""
-    }
+Write-Host "User Email: $UserEmail"
+Write-Host "Group Name: $GroupName"
+Write-Host "Tenant Id: $TenantId"
+Write-Host "Ticket Id: $TicketId"
 
+if ($resultCode -Eq 200) {
     $secure365Password = ConvertTo-SecureString -String $env:Ms365_AuthSecretId -AsPlainText -Force
     $credential365 = New-Object System.Management.Automation.PSCredential($env:Ms365_AuthAppId, $secure365Password)
 
-    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId -NoWelcome
+    Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $TenantId
 
-    # Generate the display name
-    $NewUserDisplayName = "$NewUserFirstName $NewUserLastName"
+    # Define the existing user's UserPrincipalName (UPN) and the new user's UPN
+    $existingUserUpn = $ExistingUserEmail
+    $newUserUpn = $NewUserEmail
 
-    # Extract the mailNickname from the NewUserEmail
-    $mailNickname = $NewUserEmail.Split("@")[0]
+    # Retrieve the existing user's details
+    $existingUser = Get-MgUser -UserPrincipalName $existingUserUpn
 
-    # Check and ignore fields if not specified or contain certain values
-    if ($JobTitle -eq "@NUsersJobTitle" -or -not $JobTitle) {
-        $JobTitle = $null
-    }
-    if ($OfficePhone -eq "@NUsersOfficePhone" -or -not $OfficePhone) {
-        $OfficePhone = $null
-    }
-    if ($AddJobTitle -eq "@NUsersAddJobTitle" -or -not $AddJobTitle) {
-        $AddJobTitle = $null
-    }
-    if ($Dept -eq "@NUsersDept" -or -not $Dept) {
-        $Dept = $null
-    }
-    if ($MobilePhone -eq "@NUsersMobilePhone" -or -not $MobilePhone) {
-        $MobilePhone = $null
+    if (-Not $existingUser) {
+        $message = "Request failed. User `"$ExistingUserEmail`" could not be found."
+        $resultCode = 500
     }
 
-    # Create the new user
-    $newUserParams = @{
-        UserPrincipalName = $NewUserEmail
-        DisplayName       = $NewUserDisplayName
-        GivenName         = $NewUserFirstName
-        Surname           = $NewUserLastName
-        MailNickname      = $mailNickname
-        PasswordProfile   = @{ Password = $Password; ForceChangePasswordNextSignIn = $true }
-        UsageLocation     = "GB"
-        AccountEnabled    = $true
+    # Check if the existing user has any assigned licenses
+    if ($existingUser.AssignedLicenses.Count -eq 0) {
+        Write-Host "The existing user `"$ExistingUserEmail`" does not have any assigned licenses."
     }
+    else {
+        # Retrieve all available licenses
+        $availableLicenses = Get-MgSubscribedSku
 
-    if ($JobTitle) {
-        $newUserParams.JobTitle = $JobTitle
-    }
-    if ($AddJobTitle) {
-        $newUserParams.City = $AddJobTitle
-    }
-    if ($Dept) {
-        $newUserParams.Department = $Dept
-    }
-    if ($OfficePhone) {
-        $newUserParams.BusinessPhones = $OfficePhone
-    }
-    if ($MobilePhone) {
-        $newUserParams.MobilePhone = $MobilePhone
-    }
+        # Check if the available licenses match the existing user's licenses
+        $existingUserLicenseIds = $existingUser.AssignedLicenses.SkuId
+        $missingLicenses = $availableLicenses | Where-Object { $existingUserLicenseIds -notcontains $_.SkuId }
 
-    $newUser = New-MgUser @newUserParams
-
-    if ($newUser) {
-        $message = "New user $NewUserDisplayName created successfully.`r `rUsername: $NewUserEmail `rPassword: $Password"
-        $UserPrincipalName = $newUser.UserPrincipalName
-
-        # If LikeUserGroup is specified, add the new user to the same groups as the existing user
-        if ($LikeUserGroup) {
-            $existingUser = Get-MgUser -UserPrincipalName $LikeUserGroup
-
-            if ($existingUser) {
-                $groupIds = Get-MgUserMemberOf -UserId $existingUser.Id | Where-Object { $_.ODataType -eq "#microsoft.graph.group" } | Select-Object -ExpandProperty Id
-                $groupIds | ForEach-Object {
-                    New-MgGroupMember -GroupId $_ -DirectoryObjectId $newUser.Id
-                }
-                $message += "`rNew user added to the same groups as $LikeUserGroup."
-            } else {
-                $message += "`rFailed to retrieve groups for user $LikeUserGroup."
+        if ($missingLicenses.Count -gt 0) {
+            Write-Host "The following licenses are missing for the new user:"
+            $missingLicenses | ForEach-Object {
+                Write-Host "- $($_.SkuPartNumber)"
             }
-        }
-    } else {
-        throw "Failed to create new user."
+            $resultCode = 500
+            $message = "Request failed. The existing user `"$ExistingUserEmail`" has licenses that are not available for the new user."
     }
-}
-catch {
-    $message = "Error: $_"
-    $resultCode = 500
+
+    if ($resultCode -eq 200) {
+        # Create the new user
+        $newUser = New-MgUser -UserPrincipalName $newUserUpn -DisplayName $NewUserDisplayName -GivenName $NewUserFirstName -Surname $NewUserLastName
+
+        # Assign the same licenses as the existing user
+        $existingUser.AssignedLicenses | ForEach-Object {
+            Set-MgUserLicense -UserId $newUser.Id -AddLicenses @{ SkuId = $_.SkuId }
+        }
+
+        # Add the new user to specified groups (replace with actual group IDs)
+        $groupIds = @("group1-id", "group2-id")
+        $groupIds | ForEach-Object {
+            New-MgGroupMember -GroupId $_ -DirectoryObjectId $newUser.Id
+        }
+
+        $message = "New user `"$NewUserEmail`" created successfully and assigned licenses and added to groups like user `"$ExistingUserEmail`"."
+    }
+
 }
 
 $body = @{
-    Message           = $message
-    TicketId          = $TicketId
-    ResultCode        = $resultCode
-    ResultStatus      = if ($resultCode -eq 200) { "Success" } else { "Failure" }
-    UserPrincipalName = $UserPrincipalName
-    TenantId          = $TenantId
-    Internal          = $true
+    Message      = $message
+    TicketId     = $TicketId
+    ResultCode   = $resultCode
+    ResultStatus = if ($resultCode -eq 200) { "Success" } else { "Failure" }
 } 
 
 # Associate values to output bindings by calling 'Push-OutputBinding'.
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode  = if ($resultCode -eq 200) { [HttpStatusCode]::OK } else { [HttpStatusCode]::InternalServerError }
+        StatusCode  = [HttpStatusCode]::OK
         Body        = $body
         ContentType = "application/json"
     })
