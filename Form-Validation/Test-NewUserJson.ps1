@@ -5,24 +5,26 @@ param(
     [object]$Request  # Input from HTTP request (JSON body)
 )
 
-# Function to update placeholders in the JSON
+# Function to replace placeholders with null or empty arrays
 function Update-Placeholders {
     param (
         [Parameter(Mandatory = $true)]
-        [string]$JsonInput
+        [psobject]$JsonInput
     )
 
     # Replace placeholders starting with '@' for both strings and arrays
     # Replace placeholders in strings with null
+    $JsonInput = $JsonInput | ConvertTo-Json -Depth 10
     $JsonInput = $JsonInput -replace '"([^"]+)":\s?"@[^"]+"', '"$1": null'
 
     # Replace placeholders in arrays with empty arrays
     $JsonInput = $JsonInput -replace '"([^"]+)":\s?\[@[^"]+\]', '"$1": []'
 
-    return $JsonInput
+    # Convert back to PowerShell object
+    return $JsonInput | ConvertFrom-Json
 }
 
-# Function to validate the JSON structure
+# Function to validate the JSON input
 function Test-NewUserJson {
     param (
         [Parameter(Mandatory = $true)]
@@ -113,13 +115,10 @@ function Test-NewUserJson {
 
 # ----------- MAIN EXECUTION -----------
 try {
-    # Get the raw JSON input from the request
+    # Extract raw JSON input from the HTTP Request body
     $JsonInput = $Request.Body
 
-    # Log the raw JSON input to diagnose issues
-    Write-Host "Raw Input JSON: $JsonInput"
-
-    # Validate if the input is not null or empty
+    # Check if the request body is null or empty
     if (-not $JsonInput) {
         throw "❌ Error: The provided JSON input is null or empty."
     }
@@ -127,14 +126,8 @@ try {
     # Pre-process and replace placeholders in the JSON
     $processedJson = Update-Placeholders -JsonInput $JsonInput
 
-    # Log processed JSON to ensure it's valid before parsing
-    Write-Host "Processed JSON: $processedJson"
-
-    # Convert the processed JSON string to a PowerShell object
-    $json = $processedJson | ConvertFrom-Json -ErrorAction Stop
-
     # Validate the JSON object
-    $validationErrors = Test-NewUserJson -Data $json
+    $validationErrors = Test-NewUserJson -Data $processedJson
 
     # Add metadata to the JSON structure for tracking progress
     $metadata = @{
@@ -148,12 +141,12 @@ try {
     }
 
     # Add the metadata to the JSON object
-    $json | Add-Member -MemberType NoteProperty -Name "metadata" -Value $metadata
+    $processedJson | Add-Member -MemberType NoteProperty -Name "metadata" -Value $metadata
 
     # Return the updated JSON object (with metadata) as the response
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid."
-        return $json | ConvertTo-Json -Depth 3
+        return $processedJson | ConvertTo-Json -Depth 3
     } else {
         Write-Host "❌ JSON is invalid:"
         $validationErrors | ForEach-Object { Write-Host " - $_" }
