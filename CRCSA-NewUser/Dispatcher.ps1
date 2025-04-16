@@ -7,6 +7,7 @@ param (
 
 # Load and import the Create-NewUser module
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
+. "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 
 # Utilities
 function Update-Placeholders {
@@ -71,6 +72,26 @@ try {
 
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding with user creation..."
+
+    # ✅ Handle Mirrored Users (augment JSON with inherited groups)
+    if ($json.Groups.MirroredUsers) {
+        Write-Host "➡ Fetching mirrored group memberships..."
+        $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers
+
+        # Merge groups only if not already defined manually
+        if (-not $json.Groups.Teams -or $json.Groups.Teams.Count -eq 0) {
+            $json.Groups.Teams = $mirroredGroups.Teams
+        }
+        if (-not $json.Groups.Security -or $json.Groups.Security.Count -eq 0) {
+            $json.Groups.Security = $mirroredGroups.Security
+        }
+        if (-not $json.Groups.Distribution -or $json.Groups.Distribution.Count -eq 0) {
+            $json.Groups.Distribution = $mirroredGroups.Distribution
+        }
+        if (-not $json.Groups.SharedMailboxes -or $json.Groups.SharedMailboxes.Count -eq 0) {
+            $json.Groups.SharedMailboxes = $mirroredGroups.SharedMailboxes
+        }
+    }
 
         # Call the user creation script and capture result
         $result = Invoke-CreateNewUser -Json $json
