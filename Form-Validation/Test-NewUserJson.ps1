@@ -113,7 +113,7 @@ function Test-NewUserJson {
 try {
     # Load JSON input (file or raw JSON)
     if (Test-Path $JsonInput) {
-        $raw = Get-Content -Path $JsonInput -Raw
+        $Request = Get-Content -Path $JsonInput -Raw
     } else {
         $Request = $JsonInput
     }
