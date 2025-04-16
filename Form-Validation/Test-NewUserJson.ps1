@@ -5,6 +5,7 @@ param(
     [object]$Request  # Input from HTTP request (JSON body)
 )
 
+# Function to update placeholders in the JSON
 function Update-Placeholders {
     param (
         [Parameter(Mandatory = $true)]
@@ -21,6 +22,7 @@ function Update-Placeholders {
     return $JsonInput
 }
 
+# Function to validate the JSON structure
 function Test-NewUserJson {
     param (
         [Parameter(Mandatory = $true)]
@@ -111,31 +113,56 @@ function Test-NewUserJson {
 
 # ----------- MAIN EXECUTION -----------
 try {
-    # Load JSON input (file or raw JSON)
-    if (Test-Path $JsonInput) {
-        $Request = Get-Content -Path $JsonInput -Raw
-    } else {
-        $Request = $JsonInput
+    # Get the raw JSON input from the request
+    $JsonInput = $Request.Body
+
+    # Validate if the input is not null or empty
+    if (-not $JsonInput) {
+        throw "❌ Error: The provided JSON input is null or empty."
     }
 
-    # Pre-process and replace placeholders
-    $processedJson = Update-Placeholders -JsonInput $raw
+    # Pre-process and replace placeholders in the JSON
+    $processedJson = Update-Placeholders -JsonInput $JsonInput
 
-    # Convert JSON to object
+    # Convert the processed JSON string to a PowerShell object
     $json = $processedJson | ConvertFrom-Json -ErrorAction Stop
 
+    # Validate the JSON object
     $validationErrors = Test-NewUserJson -Data $json
 
+    # Add metadata to the JSON structure for tracking progress
+    $metadata = @{
+        createdTimestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+        status = @{
+            userCreation   = "pending"
+            groupAssignment = "pending"
+            licensing       = "pending"
+        }
+        errors = $validationErrors
+    }
+
+    # Add the metadata to the JSON object
+    $json | Add-Member -MemberType NoteProperty -Name "metadata" -Value $metadata
+
+    # Return the updated JSON object (with metadata) as the response
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid."
-        exit 0
+        return $json | ConvertTo-Json -Depth 3
     } else {
         Write-Host "❌ JSON is invalid:"
         $validationErrors | ForEach-Object { Write-Host " - $_" }
-        exit 1
+        return @{
+            status  = "error"
+            message = "Invalid JSON"
+            errors  = $validationErrors
+        } | ConvertTo-Json
     }
 }
 catch {
     Write-Host "❌ Failed to parse JSON: $_"
-    exit 2
+    return @{
+        status  = "error"
+        message = "Failed to parse JSON"
+        error   = $_.Exception.Message
+    } | ConvertTo-Json
 }
