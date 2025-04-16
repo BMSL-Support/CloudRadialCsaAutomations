@@ -1,4 +1,3 @@
-#>
 using namespace System.Net
 
 param(
@@ -116,7 +115,7 @@ try {
     if (Test-Path $JsonInput) {
         $raw = Get-Content -Path $JsonInput -Raw
     } else {
-        $raw = $JsonInput
+        $Request = $JsonInput
     }
 
     # Pre-process and replace placeholders
