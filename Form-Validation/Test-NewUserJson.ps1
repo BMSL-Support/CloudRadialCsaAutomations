@@ -116,6 +116,9 @@ try {
     # Get the raw JSON input from the request
     $JsonInput = $Request.Body
 
+    # Log the raw JSON input to diagnose issues
+    Write-Host "Raw Input JSON: $JsonInput"
+
     # Validate if the input is not null or empty
     if (-not $JsonInput) {
         throw "❌ Error: The provided JSON input is null or empty."
@@ -123,6 +126,9 @@ try {
 
     # Pre-process and replace placeholders in the JSON
     $processedJson = Update-Placeholders -JsonInput $JsonInput
+
+    # Log processed JSON to ensure it's valid before parsing
+    Write-Host "Processed JSON: $processedJson"
 
     # Convert the processed JSON string to a PowerShell object
     $json = $processedJson | ConvertFrom-Json -ErrorAction Stop
