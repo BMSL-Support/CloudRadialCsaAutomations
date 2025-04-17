@@ -76,12 +76,12 @@ try {
 
         # Ensure group keys exist even if empty
         if (-not $json.Groups) {
-            $json | Add-Member -MemberType NoteProperty -Name "Groups" -Value @{}
+            $json | Add-Member -MemberType NoteProperty -Name "Groups" -Value ([PSCustomObject]@{})
         }
 
         foreach ($key in @("Teams", "Security", "Distribution", "SharedMailboxes", "Software")) {
             if (-not $json.Groups.PSObject.Properties.Match($key)) {
-                $json.Groups | Add-Member -MemberType NoteProperty -Name $key -Value @()
+                Add-Member -InputObject $json.Groups -MemberType NoteProperty -Name $key -Value @() -Force
             }
         }
 
