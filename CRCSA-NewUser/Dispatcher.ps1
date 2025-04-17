@@ -74,6 +74,17 @@ try {
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding..."
 
+        # Ensure group keys exist even if empty
+        if (-not $json.Groups) {
+            $json | Add-Member -MemberType NoteProperty -Name "Groups" -Value @{}
+        }
+
+        foreach ($key in @("Teams", "Security", "Distribution", "SharedMailboxes", "Software")) {
+            if (-not $json.Groups.PSObject.Properties.Match($key)) {
+                $json.Groups | Add-Member -MemberType NoteProperty -Name $key -Value @()
+            }
+        }
+
         # Handle mirrored user groups if defined
         if ($json.Groups.MirroredUsers) {
             Write-Host "➡ Fetching mirrored group memberships..."
@@ -90,7 +101,7 @@ try {
         $result = Invoke-CreateNewUser -Json $json
         $userUpn = $json.AccountDetails.UserPrincipalName
 
-        $dispatcherMessage = $result.Result
+        $dispatcherMessage = $result.Message
         $dispatcherErrors = @()
 
         # Add to groups if provided
@@ -104,10 +115,10 @@ try {
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
             Body        = @{
-                message  = $result.Message
+                message  = $dispatcherMessage
                 upn      = $userUpn
                 metadata = $json.metadata
-                result   = $dispatcherMessage
+                result   = $result.Result
                 errors   = $dispatcherErrors
             }
             ContentType = "application/json"
@@ -136,7 +147,7 @@ catch {
         StatusCode = [HttpStatusCode]::InternalServerError
         Body = @{
             message = "Dispatcher failed"
-            error   = "$_"
+            error   = "$_.Exception.Message"
         }
         ContentType = "application/json"
     })
