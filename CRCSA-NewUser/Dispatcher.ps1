@@ -15,8 +15,8 @@ function Update-Placeholders {
     param (
         [string]$JsonInput
     )
-    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?"@[^\"]+"', '"$1": null'
-    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?\[@[^\"]+\]', '"$1": []'
+    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?"@[^"]+"', '"$1": null'
+    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?\[@[^"]+\]', '"$1": []'
     return $JsonInput
 }
 
@@ -75,21 +75,16 @@ try {
         Write-Host "✅ JSON is valid. Proceeding..."
 
         # Ensure Groups object exists with default structure
-        $defaultGroups = [PSCustomObject]@{
-            Teams           = @()
-            Security        = @()
-            Distribution    = @()
-            SharedMailboxes = @()
-            Software        = @()
-            MirroredUsers   = $null
+        $defaultGroups = @{ 
+            Teams = @(); Security = @(); Distribution = @(); SharedMailboxes = @(); Software = @(); MirroredUsers = $null 
         }
 
         if (-not $json.Groups) {
-            $json | Add-Member -MemberType NoteProperty -Name "Groups" -Value $defaultGroups -Force
+            $json.Groups = $defaultGroups
         } else {
-            foreach ($key in $defaultGroups.PSObject.Properties.Name) {
-                if (-not $json.Groups.PSObject.Properties.Match($key)) {
-                    $json.Groups | Add-Member -MemberType NoteProperty -Name $key -Value $defaultGroups.$key -Force
+            foreach ($key in $defaultGroups.Keys) {
+                if (-not $json.Groups.PSObject.Properties[$key]) {
+                    $json.Groups[$key] = $defaultGroups[$key]
                 }
             }
         }
@@ -100,8 +95,8 @@ try {
             $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers -TenantId $json.TenantId
 
             foreach ($groupType in @("Teams", "Security", "Distribution", "SharedMailboxes")) {
-                if (-not $json.Groups.$groupType -or $json.Groups.$groupType.Count -eq 0) {
-                    $json.Groups.$groupType = $mirroredGroups.$groupType
+                if (-not $json.Groups[$groupType] -or $json.Groups[$groupType].Count -eq 0) {
+                    $json.Groups[$groupType] = $mirroredGroups[$groupType]
                 }
             }
         }
