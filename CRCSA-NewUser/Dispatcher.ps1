@@ -15,8 +15,8 @@ function Update-Placeholders {
     param (
         [string]$JsonInput
     )
-    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?"@[^"]+"', '"$1": null'
-    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?\[@[^"]+\]', '"$1": []'
+    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?"@[^\"]+"', '"$1": null'
+    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?\[@[^\"]+\]', '"$1": []'
     return $JsonInput
 }
 
@@ -151,7 +151,7 @@ catch {
         StatusCode = [HttpStatusCode]::InternalServerError
         Body = @{
             message = "Dispatcher failed"
-            error   = "$_.Exception.Message"
+            error   = $_.Exception.Message
         }
         ContentType = "application/json"
     })
