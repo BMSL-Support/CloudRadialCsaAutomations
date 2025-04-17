@@ -123,6 +123,16 @@ try {
             $dispatcherErrors += $groupResult.Errors
         }
 
+        # Update ConnectWise ticket note
+        . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
+
+        $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $dispatcherMessage -Internal $true
+
+        if ($ticketNoteResponse.Status -ne "Success") {
+            $dispatcherErrors += "Failed to update ConnectWise ticket note: $($ticketNoteResponse.Message)"
+            $dispatcherMessage += "`n❌ Failed to update ConnectWise ticket note: $($ticketNoteResponse.Message)"
+        }
+
         # Success response
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
