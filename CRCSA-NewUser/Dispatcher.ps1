@@ -41,6 +41,16 @@ function Test-NewUserJson {
         }
     }
 
+    if (-not $Data.Groups) {
+        $errors += "Missing: Groups block"
+    } else {
+        foreach ($required in @("Teams", "Security", "Distribution", "SharedMailboxes", "Software", "MirroredUsers")) {
+            if (-not $Data.Groups.PSObject.Properties[$required]) {
+                $errors += "Missing: Groups.$required"
+            }
+        }
+    }
+
     # LicenseTypes is optional but must be an array if present
     if ($Data.PSObject.Properties.Match('LicenseTypes')) {
         if ($Data.LicenseTypes -and -not ($Data.LicenseTypes -is [array])) {
@@ -73,21 +83,6 @@ try {
 
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding..."
-
-        # Ensure Groups object exists with default structure
-        $defaultGroups = @{ 
-            Teams = @(); Security = @(); Distribution = @(); SharedMailboxes = @(); Software = @(); MirroredUsers = $null 
-        }
-
-        if (-not $json.Groups) {
-            $json.Groups = $defaultGroups
-        } else {
-            foreach ($key in $defaultGroups.Keys) {
-                if (-not $json.Groups.PSObject.Properties[$key]) {
-                    $json.Groups[$key] = $defaultGroups[$key]
-                }
-            }
-        }
 
         # Handle mirrored user groups if defined
         if ($json.Groups.MirroredUsers) {
