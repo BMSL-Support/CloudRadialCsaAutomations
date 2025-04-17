@@ -5,19 +5,16 @@ param (
     [object]$Request
 )
 
-# Load and import the Create-NewUser module
+# Load modules
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 . "$PSScriptRoot\modules\Add-UserGroups.ps1"
-
 
 # Utilities
 function Update-Placeholders {
     param (
         [string]$JsonInput
     )
-
-    # Replace placeholders with null or empty arrays
     $JsonInput = $JsonInput -replace '"([^"]+)":\s?"@[^"]+"', '"$1": null'
     $JsonInput = $JsonInput -replace '"([^"]+)":\s?\[@[^"]+\]', '"$1": []'
     return $JsonInput
@@ -30,22 +27,25 @@ function Test-NewUserJson {
 
     $errors = @()
 
-    if (-not $Data.TenantId) { $errors += "Missing: TenantId" }
-    if (-not $Data.TicketId) { $errors += "Missing: TicketId" }
+    if (-not $Data.TenantId)    { $errors += "Missing: TenantId" }
+    if (-not $Data.TicketId)    { $errors += "Missing: TicketId" }
 
     $acc = $Data.AccountDetails
     if (-not $acc) {
         $errors += "Missing: AccountDetails block"
     } else {
-        if (-not $acc.GivenName) { $errors += "Missing: AccountDetails.GivenName" }
-        if (-not $acc.Surname) { $errors += "Missing: AccountDetails.Surname" }
+        if (-not $acc.GivenName)         { $errors += "Missing: AccountDetails.GivenName" }
+        if (-not $acc.Surname)           { $errors += "Missing: AccountDetails.Surname" }
         if (-not $acc.UserPrincipalName -or $acc.UserPrincipalName -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
             $errors += "Missing or invalid: AccountDetails.UserPrincipalName"
         }
     }
 
-    if (-not $Data.LicenseTypes -or -not ($Data.LicenseTypes -is [array])) {
-        $errors += "Missing or invalid: LicenseTypes (must be an array)"
+    # LicenseTypes is optional but must be an array if present
+    if ($Data.PSObject.Properties.Match('LicenseTypes')) {
+        if ($Data.LicenseTypes -and -not ($Data.LicenseTypes -is [array])) {
+            $errors += "Invalid format: LicenseTypes must be an array"
+        }
     }
 
     return $errors
@@ -57,14 +57,13 @@ try {
     $rawClean = Update-Placeholders -JsonInput $raw
     $json = $rawClean | ConvertFrom-Json -ErrorAction Stop
 
-    # Add metadata
     if (-not $json.metadata) {
         $json | Add-Member -MemberType NoteProperty -Name "metadata" -Value @{
             createdTimestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
             status = @{
-                userCreation = "pending"
+                userCreation    = "pending"
                 groupAssignment = "pending"
-                licensing = "pending"
+                licensing       = "pending"
             }
             errors = @()
         }
@@ -73,55 +72,57 @@ try {
     $validationErrors = Test-NewUserJson -Data $json
 
     if ($validationErrors.Count -eq 0) {
-        Write-Host "✅ JSON is valid. Proceeding with user creation..."
+        Write-Host "✅ JSON is valid. Proceeding..."
 
-    # ✅ Handle Mirrored Users (augment JSON with inherited groups)
-    if ($json.Groups.MirroredUsers) {
-        Write-Host "➡ Fetching mirrored group memberships..."
-        $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers
+        # Handle mirrored user groups if defined
+        if ($json.Groups.MirroredUsers) {
+            Write-Host "➡ Fetching mirrored group memberships..."
+            $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers
 
-        # Merge groups only if not already defined manually
-        if (-not $json.Groups.Teams -or $json.Groups.Teams.Count -eq 0) {
-            $json.Groups.Teams = $mirroredGroups.Teams
+            foreach ($groupType in @("Teams", "Security", "Distribution", "SharedMailboxes")) {
+                if (-not $json.Groups.$groupType -or $json.Groups.$groupType.Count -eq 0) {
+                    $json.Groups.$groupType = $mirroredGroups.$groupType
+                }
+            }
         }
-        if (-not $json.Groups.Security -or $json.Groups.Security.Count -eq 0) {
-            $json.Groups.Security = $mirroredGroups.Security
-        }
-        if (-not $json.Groups.Distribution -or $json.Groups.Distribution.Count -eq 0) {
-            $json.Groups.Distribution = $mirroredGroups.Distribution
-        }
-        if (-not $json.Groups.SharedMailboxes -or $json.Groups.SharedMailboxes.Count -eq 0) {
-            $json.Groups.SharedMailboxes = $mirroredGroups.SharedMailboxes
-        }
-    }
 
-        # Call the user creation script and capture result
+        # Create user
         $result = Invoke-CreateNewUser -Json $json
+        $userUpn = $json.AccountDetails.UserPrincipalName
 
-       # Group Assignment
+        $dispatcherMessage = $result.Message
+        $dispatcherErrors = @()
+
+        # Add to groups if provided
         if ($json.Groups) {
-            $groupResult = Add-UserGroups -UserPrincipalName $userUpn -Groups $json.Groups -TenantId $json.TenantId
+            $groupResult = Add-UserGroups -UserPrincipalName $userUpn -Groups $json.Groups -TenantId $json.TenantId -TicketId $json.TicketId
             $dispatcherMessage += "`n`n" + $groupResult.Message
             $dispatcherErrors += $groupResult.Errors
         }
-        # $groupResult = Invoke-AssignGroups -Json $result.Json
-        # $licenseResult = Invoke-AssignLicenses -Json $result.Json
 
+        # Success response
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
-            Body        = $result
+            Body        = @{
+                message  = "User creation completed"
+                upn      = $userUpn
+                metadata = $json.metadata
+                result   = $dispatcherMessage
+                errors   = $dispatcherErrors
+            }
             ContentType = "application/json"
         })
-    } else {
-        Write-Host "❌ JSON is invalid."
+    }
+    else {
+        Write-Host "❌ JSON validation failed."
         $json.metadata.status.userCreation = "failed"
         $json.metadata.errors += $validationErrors
 
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::BadRequest
             Body = @{
-                message = "Validation failed"
-                errors = $validationErrors
+                message  = "Validation failed"
+                errors   = $validationErrors
                 metadata = $json.metadata
             }
             ContentType = "application/json"
