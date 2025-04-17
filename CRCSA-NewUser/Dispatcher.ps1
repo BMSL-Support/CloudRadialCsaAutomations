@@ -100,10 +100,10 @@ try {
         $dispatcherMessage = $result.Message
         $dispatcherErrors = @()
 
-        if (-not $result.Success) {
+        if ($result.ResultStatus -ne "Success") {
             $json.metadata.status.userCreation = "failed"
             $json.metadata.errors += $result.Message
-
+        
             Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::BadRequest
                 Body = @{
