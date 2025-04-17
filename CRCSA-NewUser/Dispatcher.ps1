@@ -15,8 +15,8 @@ function Update-Placeholders {
     param (
         [string]$JsonInput
     )
-    $JsonInput = $JsonInput -replace '"([^"]+)":\s?"@[^"]+"', '"$1": null'
-    $JsonInput = $JsonInput -replace '"([^"]+)":\s?\[@[^"]+\]', '"$1": []'
+    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?"@[^\"]+"', '"$1": null'
+    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?\[@[^\"]+\]', '"$1": []'
     return $JsonInput
 }
 
@@ -104,10 +104,10 @@ try {
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
             Body        = @{
-                message  = "User creation completed"
+                message  = $dispatcherMessage
                 upn      = $userUpn
                 metadata = $json.metadata
-                result   = $dispatcherMessage
+                result   = $result.Result
                 errors   = $dispatcherErrors
             }
             ContentType = "application/json"
