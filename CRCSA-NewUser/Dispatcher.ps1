@@ -118,7 +118,7 @@ try {
 
         # Add to groups if provided
         if ($json.Groups) {
-            $groupResult = Add-UserGroups -UserPrincipalName $userUpn -Groups $json.Groups -TenantId $json.TenantId -TicketId $json.TicketId
+            $groupResult = Add-UserGroups -Json $json
             $dispatcherMessage += "`n`n" + $groupResult.Message
             $dispatcherErrors += $groupResult.Errors
         }
