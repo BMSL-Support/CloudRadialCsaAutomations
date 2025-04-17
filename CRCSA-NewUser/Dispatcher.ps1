@@ -10,6 +10,7 @@ param (
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 . "$PSScriptRoot\modules\Add-UserGroups.ps1"
 . "$PSScriptRoot\modules\utils.ps1"
+. "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
 
 # Utilities
 function Update-Placeholders {
@@ -124,8 +125,6 @@ try {
         }
 
         # Update ConnectWise ticket note
-        . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
-
         $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $dispatcherMessage -Internal $true
 
         if ($ticketNoteResponse.Status -ne "Success") {
