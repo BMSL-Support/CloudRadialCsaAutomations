@@ -74,14 +74,23 @@ try {
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding..."
 
-        # Ensure group keys exist even if empty
-        if (-not $json.Groups) {
-            $json | Add-Member -MemberType NoteProperty -Name "Groups" -Value ([PSCustomObject]@{})
+        # Ensure Groups object exists with default structure
+        $defaultGroups = [PSCustomObject]@{
+            Teams           = @()
+            Security        = @()
+            Distribution    = @()
+            SharedMailboxes = @()
+            Software        = @()
+            MirroredUsers   = $null
         }
 
-        foreach ($key in @("Teams", "Security", "Distribution", "SharedMailboxes", "Software")) {
-            if (-not $json.Groups.PSObject.Properties.Match($key)) {
-                Add-Member -InputObject $json.Groups -MemberType NoteProperty -Name $key -Value @() -Force
+        if (-not $json.Groups) {
+            $json | Add-Member -MemberType NoteProperty -Name "Groups" -Value $defaultGroups -Force
+        } else {
+            foreach ($key in $defaultGroups.PSObject.Properties.Name) {
+                if (-not $json.Groups.PSObject.Properties.Match($key)) {
+                    $json.Groups | Add-Member -MemberType NoteProperty -Name $key -Value $defaultGroups.$key -Force
+                }
             }
         }
 
