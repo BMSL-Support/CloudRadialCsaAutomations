@@ -110,6 +110,13 @@ try {
             $dispatcherErrors += $groupResult.Errors
         }
 
+        # Check for UPN duplication error
+        if ($result.Errors -match "Another object with the same value for property userPrincipalName") {
+            $json.metadata.status.userCreation = "failed"
+            $json.metadata.errors += "UserPrincipalName already exists: $userUpn"
+            throw "User creation failed due to duplicate UPN"
+        }
+
         # Success response
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
