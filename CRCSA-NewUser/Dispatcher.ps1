@@ -8,6 +8,8 @@ param (
 # Load and import the Create-NewUser module
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
+. "$PSScriptRoot\modules\Add-UserGroups.ps1"
+
 
 # Utilities
 function Update-Placeholders {
@@ -96,7 +98,12 @@ try {
         # Call the user creation script and capture result
         $result = Invoke-CreateNewUser -Json $json
 
-        # You could add calls here for groups/licensing too
+       # Group Assignment
+        if ($json.Groups) {
+            $groupResult = Add-UserGroups -UserPrincipalName $userUpn -Groups $json.Groups -TenantId $json.TenantId
+            $dispatcherMessage += "`n`n" + $groupResult.Message
+            $dispatcherErrors += $groupResult.Errors
+        }
         # $groupResult = Invoke-AssignGroups -Json $result.Json
         # $licenseResult = Invoke-AssignLicenses -Json $result.Json
 
