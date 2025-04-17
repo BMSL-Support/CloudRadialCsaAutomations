@@ -95,8 +95,8 @@ try {
             $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers -TenantId $json.TenantId
 
             foreach ($groupType in @("Teams", "Security", "Distribution", "SharedMailboxes")) {
-                if (-not $json.Groups[$groupType] -or $json.Groups[$groupType].Count -eq 0) {
-                    $json.Groups[$groupType] = $mirroredGroups[$groupType]
+                if (-not $json.Groups.$groupType -or $json.Groups.$groupType.Count -eq 0) {
+                    $json.Groups.$groupType = $mirroredGroups[$groupType]
                 }
             }
         }
