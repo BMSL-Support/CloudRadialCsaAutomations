@@ -77,9 +77,14 @@ try {
         Write-Host "✅ JSON is valid. Proceeding..."
 
         # Handle mirrored user groups if defined
-        if ($json.Groups.MirroredUsers) {
+        $mirroredInfo = $json.Groups.MirroredUsers
+        if ($mirroredInfo.MirroredUserEmail -or $mirroredInfo.MirroredUserGroups) {
             Write-Host "➡ Fetching mirrored group memberships..."
-            $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers -TenantId $json.TenantId
+
+            $mirroredGroups = Get-MirroredUserGroupMemberships `
+                -MirroredUserEmail $mirroredInfo.MirroredUserEmail `
+                -MirroredUserGroups $mirroredInfo.MirroredUserGroups `
+                -TenantId $json.TenantId
 
             foreach ($groupType in @("Teams", "Security", "Distribution", "SharedMailboxes")) {
                 if (-not $json.Groups.$groupType -or $json.Groups.$groupType.Count -eq 0) {
