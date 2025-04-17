@@ -77,7 +77,7 @@ try {
         # Handle mirrored user groups if defined
         if ($json.Groups.MirroredUsers) {
             Write-Host "➡ Fetching mirrored group memberships..."
-            $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers
+            $mirroredGroups = Get-MirroredUserGroupMemberships -MirroredUsers $json.Groups.MirroredUsers -TenantId $json.TenantId
 
             foreach ($groupType in @("Teams", "Security", "Distribution", "SharedMailboxes")) {
                 if (-not $json.Groups.$groupType -or $json.Groups.$groupType.Count -eq 0) {
@@ -90,7 +90,7 @@ try {
         $result = Invoke-CreateNewUser -Json $json
         $userUpn = $json.AccountDetails.UserPrincipalName
 
-        $dispatcherMessage = $result.Message
+        $dispatcherMessage = $result.Result
         $dispatcherErrors = @()
 
         # Add to groups if provided
@@ -104,10 +104,10 @@ try {
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
             Body        = @{
-                message  = $dispatcherMessage
+                message  = $result.Message
                 upn      = $userUpn
                 metadata = $json.metadata
-                result   = $result.Result
+                result   = $dispatcherMessage
                 errors   = $dispatcherErrors
             }
             ContentType = "application/json"
