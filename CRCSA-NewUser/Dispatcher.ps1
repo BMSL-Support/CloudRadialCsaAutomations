@@ -9,6 +9,7 @@ param (
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 . "$PSScriptRoot\modules\Add-UserGroups.ps1"
+. "$PSScriptRoot\modules\utils.ps1"
 
 # Utilities
 function Update-Placeholders {
@@ -67,17 +68,8 @@ try {
     $rawClean = Update-Placeholders -JsonInput $raw
     $json = $rawClean | ConvertFrom-Json -ErrorAction Stop
 
-    if (-not $json.metadata) {
-        $json | Add-Member -MemberType NoteProperty -Name "metadata" -Value @{
-            createdTimestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
-            status = @{
-                userCreation    = "pending"
-                groupAssignment = "pending"
-                licensing       = "pending"
-            }
-            errors = @()
-        }
-    }
+    # Use shared metadata initializer
+    Initialize-Metadata -Json $json
 
     $validationErrors = Test-NewUserJson -Data $json
 
@@ -103,18 +95,27 @@ try {
         $dispatcherMessage = $result.Message
         $dispatcherErrors = @()
 
+        if (-not $result.Success) {
+            $json.metadata.status.userCreation = "failed"
+            $json.metadata.errors += $result.Message
+
+            Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body = @{
+                    message  = "User creation failed"
+                    errors   = @($result.Message)
+                    metadata = $json.metadata
+                }
+                ContentType = "application/json"
+            })
+            return
+        }
+
         # Add to groups if provided
         if ($json.Groups) {
             $groupResult = Add-UserGroups -UserPrincipalName $userUpn -Groups $json.Groups -TenantId $json.TenantId -TicketId $json.TicketId
             $dispatcherMessage += "`n`n" + $groupResult.Message
             $dispatcherErrors += $groupResult.Errors
-        }
-
-        # Check for UPN duplication error
-        if ($result.Errors -match "Another object with the same value for property userPrincipalName") {
-            $json.metadata.status.userCreation = "failed"
-            $json.metadata.errors += "UserPrincipalName already exists: $userUpn"
-            throw "User creation failed due to duplicate UPN"
         }
 
         # Success response
