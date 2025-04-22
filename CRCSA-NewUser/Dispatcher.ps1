@@ -109,12 +109,6 @@ try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     $ticketNote = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -Json $JsonObject -ModuleOutputs $AllOutputs
     Write-Host "✅ Ticket note formatted."
-
-    return @{
-        result  = "success"
-        message = $ticketNote
-        errors  = $JsonObject.metadata.errors
-    } | ConvertTo-Json -Depth 10
 }
 catch {
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
@@ -140,11 +134,11 @@ try {
     }
 
     return @{
-        result  = $noteResult.Status
-        message = $ticketNote
-        noteStatus = $noteResult.Status
-        noteMessage = $noteResult.Message
-        errors  = $JsonObject.metadata.errors
+        result       = $noteResult.Status
+        message      = $ticketNote
+        noteStatus   = $noteResult.Status
+        noteMessage  = $noteResult.Message
+        errors       = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
 catch {
@@ -156,3 +150,4 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
+
