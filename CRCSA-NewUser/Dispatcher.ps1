@@ -11,10 +11,10 @@ param (
 # === STEP 0: Read and Clean JSON ===
 try {
     Write-Host "📥 Reading JSON input..."
-    $rawJson = ($Request.Body | Out-String).Trim()     # ✅ Correct source
+    $rawJson = ($Request.Body | Out-String).Trim()
     Write-Host "🧼 Cleaning placeholders..."
 
-    $CleanedJson = Clear-Placeholders -JsonString $rawJson   # ✅ Fixed reference
+    $CleanedJson = Clear-Placeholders -JsonString $rawJson
     $JsonObject = $CleanedJson | ConvertFrom-Json -Depth 10
     $JsonObject = Update-Placeholders -JsonObject $JsonObject
 
