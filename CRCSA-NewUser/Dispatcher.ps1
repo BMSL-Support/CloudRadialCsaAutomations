@@ -61,7 +61,7 @@ try {
         $result = Invoke-CreateNewUser -Json $json
         $userUpn = $json.AccountDetails.UserPrincipalName
 
-        $dispatcherMessage = $result.Message
+        $dispatcherMessage = ""
         $dispatcherErrors = @()
 
         if ($result.ResultStatus -ne "Success") {
