@@ -5,18 +5,19 @@ param (
     [object]$Request
 )
 
-# Read JSON body from HTTP request
-$rawJson = ($Request.Body | Out-String).Trim()
-
-# Load utilities and modules
+# === LOAD MODULES ===
 . "$PSScriptRoot\modules\utils.ps1"
 
-# Clean up placeholder values (e.g., "@User", [@Groups])
+# === STEP 0: Read and Clean JSON ===
 try {
+    Write-Host "📥 Reading JSON input..."
+    $rawJson = ($Request.Body | Out-String).Trim()     # ✅ Correct source
     Write-Host "🧼 Cleaning placeholders..."
-    $CleanedJson = Clear-Placeholders -JsonString $JsonInput
+
+    $CleanedJson = Clear-Placeholders -JsonString $rawJson   # ✅ Fixed reference
     $JsonObject = $CleanedJson | ConvertFrom-Json -Depth 10
     $JsonObject = Update-Placeholders -JsonObject $JsonObject
+
     Write-Host "✅ Placeholders removed and JSON parsed."
 }
 catch {
@@ -27,7 +28,7 @@ catch {
     } | ConvertTo-Json -Depth 10
 }
 
-# Initialize metadata
+# === STEP 1: Initialize Metadata ===
 try {
     Initialize-Metadata -Json $JsonObject
 }
@@ -35,10 +36,10 @@ catch {
     Write-Host "⚠ Failed to initialize metadata: $($_.Exception.Message)"
 }
 
-# Store all output logs from modules
+# === MODULE EXECUTION LOGGING ===
 $AllOutputs = @()
 
-# === STEP 1: Validate JSON ===
+# === STEP 2: Validate JSON ===
 try {
     Write-Host "🔍 Running JSON validation..."
     $validationResult = Test-NewUserJson -Json $JsonObject
@@ -50,7 +51,7 @@ catch {
     Write-Host $errorMsg
 }
 
-# === STEP 2: Group Mirroring ===
+# === STEP 3: Group Mirroring ===
 if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.MirroredUsers.MirroredUserGroups) {
     try {
         Write-Host "➡ Fetching mirrored group memberships..."
@@ -64,7 +65,7 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
     }
 }
 
-# === STEP 3: Create User ===
+# === STEP 4: Create User ===
 try {
     Write-Host "👤 Creating user..."
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
@@ -76,7 +77,7 @@ catch {
     Write-Host $errorMsg
 }
 
-# === STEP 4: Add to Groups ===
+# === STEP 5: Add to Groups ===
 try {
     Write-Host "👥 Adding user to groups..."
     $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
@@ -88,7 +89,7 @@ catch {
     Write-Host $errorMsg
 }
 
-# === STEP 5: Licensing (if module exists) ===
+# === STEP 6: Licensing (optional) ===
 $licenseModule = "$PSScriptRoot\modules\Assign-License.ps1"
 if (Test-Path $licenseModule) {
     try {
@@ -103,24 +104,24 @@ if (Test-Path $licenseModule) {
     }
 }
 
-# === FINAL STEP: Format ticket note ===
+# === STEP 7: Format Final Ticket Note ===
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     $ticketNote = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -Json $JsonObject -ModuleOutputs $AllOutputs
     Write-Host "✅ Ticket note formatted."
 
     return @{
-        result = "success"
+        result  = "success"
         message = $ticketNote
-        errors = $JsonObject.metadata.errors
+        errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
 catch {
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
     Write-Host $errorMsg
     return @{
-        error = $_.Exception.Message
+        error   = $_.Exception.Message
         message = "Dispatcher failed during final formatting"
-        errors = $JsonObject.metadata.errors
+        errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
