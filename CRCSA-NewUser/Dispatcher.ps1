@@ -124,31 +124,33 @@ catch {
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
 
-   $ticketNoteResult = .\Update-ConnectWiseTicketNote.ps1 -TicketId $TicketId -Message $ticketNote
+    $ticketNoteResult = & "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1" -TicketId $TicketId -Message $ticketNote
 
-# Log full JSON output
-Write-Information "OUTPUT: $($ticketNoteResult | ConvertTo-Json -Depth 5 -Compress)"
+    # Log full JSON output for diagnostics
+    Write-Information "OUTPUT: $($ticketNoteResult | ConvertTo-Json -Depth 5 -Compress)"
 
-# Handle failure with clearer logging
-if ($ticketNoteResult.Status -ne "Success") {
-    Write-Warning "⚠️ ConnectWise ticket note failed to add"
-    Write-Warning "Message: $($ticketNoteResult.Message)"
-    if ($ticketNoteResult.Error) {
-        Write-Error "Error: $($ticketNoteResult.Error)"
+    # Handle failure with clear warnings
+    if ($ticketNoteResult.Status -ne "Success") {
+        Write-Warning "⚠️ ConnectWise ticket note failed to add"
+        Write-Warning "Message: $($ticketNoteResult.Message)"
+
+        if ($ticketNoteResult.Error) {
+            Write-Error "Error: $($ticketNoteResult.Error)"
+        }
+
+        if ($ticketNoteResult.Stack) {
+            Write-Verbose "Stack Trace: $($ticketNoteResult.Stack)"
+        }
     }
-    if ($ticketNoteResult.Stack) {
-        Write-Verbose "Stack Trace: $($ticketNoteResult.Stack)"
+    else {
+        Write-Information $ticketNoteResult.Message
     }
-}
-else {
-    Write-Information $ticketNoteResult.Message
-}
 
     return @{
-        result       = $noteResult.Status
+        result       = $ticketNoteResult.Status
         message      = $ticketNote
-        noteStatus   = $noteResult.Status
-        noteMessage  = $noteResult.Message
+        noteStatus   = $ticketNoteResult.Status
+        noteMessage  = $ticketNoteResult.Message
         errors       = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
@@ -161,4 +163,3 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
-
