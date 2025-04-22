@@ -88,10 +88,16 @@ try {
         }
 
         # Format the final ticket note
-        $formattedNote = Format-TicketNote -Json $json -UserCreationResult $result -GroupAssignmentResult $groupResult
-
-        # Update ConnectWise ticket
-        $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
+        $formattedNote = & "$PSScriptRoot\modules\Format-TicketNote.ps1" `
+        -Json $json `
+        -UserCreationMessage $result.Message `
+        -UserPassword $result.Password `
+        -GroupAssignmentMessage ($groupResult?.Message) `
+        -LicenseAssignmentMessage ($result.LicenseMessage)
+    
+            # Update ConnectWise ticket
+            $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
+    
 
 
         if ($ticketNoteResponse.Status -ne "Success") {
