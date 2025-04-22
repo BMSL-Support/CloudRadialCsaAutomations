@@ -14,7 +14,7 @@ param (
 
 try {
     $raw = $Request.Body | ConvertTo-Json -Depth 10
-    $rawClean = Update-Placeholders -JsonInput $raw
+    $rawClean = Update-Placeholders -JsonObject $raw
     $json = $rawClean | ConvertFrom-Json -ErrorAction Stop
 
     Initialize-Metadata -Json $json
