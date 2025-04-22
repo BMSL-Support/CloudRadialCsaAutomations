@@ -1,7 +1,13 @@
+using namespace System.Net
+
 param (
     [Parameter(Mandatory = $true)]
-    [string]$JsonInput
+    [Microsoft.Azure.Functions.PowerShellWorker.HttpRequestContext]$Request
 )
+
+# Read JSON body from HTTP request
+$JsonInput = $Request.Body.ReadAsString()
+
 
 # Load utilities and modules
 . "$PSScriptRoot\modules\utils.ps1"
