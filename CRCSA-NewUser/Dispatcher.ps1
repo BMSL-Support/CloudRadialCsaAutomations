@@ -1,170 +1,121 @@
-using namespace System.Net
-
 param (
     [Parameter(Mandatory = $true)]
-    [object]$Request
+    [string]$JsonInput
 )
 
-# Load modules
-. "$PSScriptRoot\modules\Create-NewUser.ps1"
-. "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
-. "$PSScriptRoot\modules\Add-UserGroups.ps1"
-. "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
+# Load utilities and modules
 . "$PSScriptRoot\modules\utils.ps1"
 
-# Main Logic
+# Clean up placeholder values (e.g., "@User", [@Groups])
 try {
-    # Parse raw JSON and sanitize placeholders
-    $rawJson = $Request.Body | Out-String
-    $cleanJson = Clear-Placeholders -JsonString $rawJson
-
-    try {
-        $json = $cleanJson | ConvertFrom-Json -ErrorAction Stop
-    }
-    catch {
-        return @{
-            message = "Dispatcher failed"
-            error   = "Conversion from JSON failed with error: $($_.Exception.Message)"
-        }
-    }
-
-    # Clean up any remaining @placeholders post-parsing
-    $json = Update-Placeholders -JsonObject $json
-
-    # Initialize metadata
-    Initialize-Metadata -Json $json -Step "userCreation"
-
-    # Validate JSON structure
-    $validationErrors = Test-NewUserJson -Data $json
-
-    if ($validationErrors.Count -eq 0) {
-        Write-Host "✅ JSON is valid. Proceeding..."
-
-    # Handle mirrored group logic
-    $mirroredInfo = $json.Groups.MirroredUsers
-    if ($mirroredInfo.MirroredUserEmail -or $mirroredInfo.MirroredUserGroups) {
-        Write-Host "➡ Fetching mirrored group memberships..."
-        $json.Groups += Get-MirroredUserGroupMemberships -Json $json
-        Write-Host "✅ Mirrored group memberships added to Json.Groups"
-}
-
-        # Create user
-        $result = Invoke-CreateNewUser -Json $json
-        $userUpn = $json.AccountDetails.UserPrincipalName
-
-        $dispatcherMessage = ""
-        $dispatcherErrors = @()
-
-        if ($result.ResultStatus -ne "Success") {
-            $json.metadata.status.userCreation = "failed"
-            $json.metadata.errors += $result.Message
-
-            Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-                StatusCode = [HttpStatusCode]::BadRequest
-                Body = @{
-                    message  = "User creation failed"
-                    errors   = @($result.Message)
-                    metadata = $json.metadata
-                }
-                ContentType = "application/json"
-            })
-            return
-        }
-
-        # Assign groups
-        $groupResult = $null
-        if ($json.Groups) {
-            $groupResult = Add-UserGroups -Json $json
-        }
-
-# Format the final ticket note using Format-TicketNote.ps1
-try {
-    Write-Information "INFORMATION: 🧩 Calling Format-TicketNote.ps1..."
-
-    # Debug types before call
-    function Write-DebugType($label, $obj) {
-        $typeName = if ($null -ne $obj) { $obj.GetType().FullName } else { 'null' }
-        Write-Information "DEBUG: $label = $typeName"
-    }
-
-    Write-DebugType -label "Json" -obj $Json
-    Write-DebugType -label "UserCreationMessage" -obj $userMessage
-    Write-DebugType -label "UserPassword" -obj $password
-    Write-DebugType -label "GroupAssignmentMessage" -obj $groupMsg
-    Write-DebugType -label "LicenseAssignmentMessage" -obj $licenseMsg
-
-    # Call the formatting script and capture all output
-    $ticketNote = & "$PSScriptRoot\Format-TicketNote.ps1" `
-        -Json $Json `
-        -UserCreationMessage $userMessage `
-        -UserPassword $password `
-        -GroupAssignmentMessage $groupMsg `
-        -LicenseAssignmentMessage $licenseMsg 2>&1 | Tee-Object -Variable output
-
-    # Log every line for Azure visibility
-    $output | ForEach-Object {
-        Write-Information "FORMAT-NOTE OUTPUT: $_"
-    }
-
-    if (-not $ticketNote) {
-        throw "Formatted ticket note is null or empty."
-    }
-
-    Write-Information "INFORMATION: ✅ Ticket note successfully formatted."
-
-} catch {
-    Write-Error "❌ ERROR: Failed to format ticket note. Exception: $_"
-    throw
-}
-
-        # Update ConnectWise ticket
-        $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
-    
-
-
-        if ($ticketNoteResponse.Status -ne "Success") {
-            $dispatcherErrors += "Failed to update ConnectWise ticket note: $($ticketNoteResponse.Message)"
-            $dispatcherMessage += "`n❌ Failed to update ConnectWise ticket note: $($ticketNoteResponse.Message)"
-        }
-
-        # Final response
-        Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-            StatusCode  = [HttpStatusCode]::OK
-            Body        = @{
-                message  = $dispatcherMessage
-                upn      = $userUpn
-                metadata = $json.metadata
-                result   = $result.Result
-                errors   = $dispatcherErrors
-            }
-            ContentType = "application/json"
-        })
-    }
-    else {
-        Write-Host "❌ JSON validation failed."
-        $json.metadata.status.userCreation = "failed"
-        $json.metadata.errors += $validationErrors
-
-        Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::BadRequest
-            Body = @{
-                message  = "Validation failed"
-                errors   = $validationErrors
-                metadata = $json.metadata
-            }
-            ContentType = "application/json"
-        })
-    }
+    Write-Host "🧼 Cleaning placeholders..."
+    $CleanedJson = Clear-Placeholders -JsonString $JsonInput
+    $JsonObject = $CleanedJson | ConvertFrom-Json -Depth 10
+    $JsonObject = Update-Placeholders -JsonObject $JsonObject
+    Write-Host "✅ Placeholders removed and JSON parsed."
 }
 catch {
-    Write-Host "❌ Exception during dispatch: $_"
+    Write-Host "❌ Failed to clean or parse JSON: $($_.Exception.Message)"
+    return @{
+        error = $_.Exception.Message
+        message = "Dispatcher failed at JSON parsing"
+    } | ConvertTo-Json -Depth 10
+}
 
-    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode = [HttpStatusCode]::InternalServerError
-        Body = @{
-            message = "Dispatcher failed"
-            error   = $_.Exception.Message
-        }
-        ContentType = "application/json"
-    })
+# Initialize metadata
+try {
+    Initialize-Metadata -Json $JsonObject
+}
+catch {
+    Write-Host "⚠ Failed to initialize metadata: $($_.Exception.Message)"
+}
+
+# Store all output logs from modules
+$AllOutputs = @()
+
+# === STEP 1: Validate JSON ===
+try {
+    Write-Host "🔍 Running JSON validation..."
+    $validationResult = Test-NewUserJson -Json $JsonObject
+    $AllOutputs += $validationResult
+}
+catch {
+    $errorMsg = "❌ Exception during JSON validation: $($_.Exception.Message)"
+    $JsonObject.metadata.errors += $errorMsg
+    Write-Host $errorMsg
+}
+
+# === STEP 2: Group Mirroring ===
+if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.MirroredUsers.MirroredUserGroups) {
+    try {
+        Write-Host "➡ Fetching mirrored group memberships..."
+        $groupResult = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
+        $AllOutputs += "✅ Mirrored groups fetched successfully."
+    }
+    catch {
+        $errorMsg = "❌ Exception during mirrored group fetch: $($_.Exception.Message)"
+        $JsonObject.metadata.errors += $errorMsg
+        Write-Host $errorMsg
+    }
+}
+
+# === STEP 3: Create User ===
+try {
+    Write-Host "👤 Creating user..."
+    $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
+    $AllOutputs += $userCreationOutput
+}
+catch {
+    $errorMsg = "❌ Exception during user creation: $($_.Exception.Message)"
+    $JsonObject.metadata.errors += $errorMsg
+    Write-Host $errorMsg
+}
+
+# === STEP 4: Add to Groups ===
+try {
+    Write-Host "👥 Adding user to groups..."
+    $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
+    $AllOutputs += $groupAssignmentOutput
+}
+catch {
+    $errorMsg = "❌ Exception during group assignment: $($_.Exception.Message)"
+    $JsonObject.metadata.errors += $errorMsg
+    Write-Host $errorMsg
+}
+
+# === STEP 5: Licensing (if module exists) ===
+$licenseModule = "$PSScriptRoot\modules\Assign-License.ps1"
+if (Test-Path $licenseModule) {
+    try {
+        Write-Host "🎫 Assigning licenses..."
+        $licenseOutput = & $licenseModule -Json $JsonObject
+        $AllOutputs += $licenseOutput
+    }
+    catch {
+        $errorMsg = "❌ Exception during licensing: $($_.Exception.Message)"
+        $JsonObject.metadata.errors += $errorMsg
+        Write-Host $errorMsg
+    }
+}
+
+# === FINAL STEP: Format ticket note ===
+try {
+    Write-Host "📝 Formatting ConnectWise ticket note..."
+    $ticketNote = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -Json $JsonObject -ModuleOutputs $AllOutputs
+    Write-Host "✅ Ticket note formatted."
+
+    return @{
+        result = "success"
+        message = $ticketNote
+        errors = $JsonObject.metadata.errors
+    } | ConvertTo-Json -Depth 10
+}
+catch {
+    $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
+    Write-Host $errorMsg
+    return @{
+        error = $_.Exception.Message
+        message = "Dispatcher failed during final formatting"
+        errors = $JsonObject.metadata.errors
+    } | ConvertTo-Json -Depth 10
 }
