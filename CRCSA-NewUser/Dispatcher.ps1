@@ -9,67 +9,14 @@ param (
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 . "$PSScriptRoot\modules\Add-UserGroups.ps1"
-. "$PSScriptRoot\modules\utils.ps1"
 . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
+. "$PSScriptRoot\modules\utils.ps1"
 
-# Utilities
-function Update-Placeholders {
-    param (
-        [string]$JsonInput
-    )
-    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?"@[^\"]+"', '"$1": null'
-    $JsonInput = $JsonInput -replace '"([^\"]+)":\s?\[@[^\"]+\]', '"$1": []'
-    return $JsonInput
-}
-
-function Test-NewUserJson {
-    param (
-        [psobject]$Data
-    )
-
-    $errors = @()
-
-    if (-not $Data.TenantId)    { $errors += "Missing: TenantId" }
-    if (-not $Data.TicketId)    { $errors += "Missing: TicketId" }
-
-    $acc = $Data.AccountDetails
-    if (-not $acc) {
-        $errors += "Missing: AccountDetails block"
-    } else {
-        if (-not $acc.GivenName)         { $errors += "Missing: AccountDetails.GivenName" }
-        if (-not $acc.Surname)           { $errors += "Missing: AccountDetails.Surname" }
-        if (-not $acc.UserPrincipalName -or $acc.UserPrincipalName -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
-            $errors += "Missing or invalid: AccountDetails.UserPrincipalName"
-        }
-    }
-
-    if (-not $Data.Groups) {
-        $errors += "Missing: Groups block"
-    } else {
-        foreach ($required in @("Teams", "Security", "Distribution", "SharedMailboxes", "Software", "MirroredUsers")) {
-            if (-not $Data.Groups.PSObject.Properties[$required]) {
-                $errors += "Missing: Groups.$required"
-            }
-        }
-    }
-
-    # LicenseTypes is optional but must be an array if present
-    if ($Data.PSObject.Properties.Match('LicenseTypes')) {
-        if ($Data.LicenseTypes -and -not ($Data.LicenseTypes -is [array])) {
-            $errors += "Invalid format: LicenseTypes must be an array"
-        }
-    }
-
-    return $errors
-}
-
-# Main Logic
 try {
     $raw = $Request.Body | ConvertTo-Json -Depth 10
     $rawClean = Update-Placeholders -JsonInput $raw
     $json = $rawClean | ConvertFrom-Json -ErrorAction Stop
 
-    # Use shared metadata initializer
     Initialize-Metadata -Json $json
 
     $validationErrors = Test-NewUserJson -Data $json
@@ -77,11 +24,10 @@ try {
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding..."
 
-        # Handle mirrored user groups if defined
+        # Fetch mirrored group memberships if needed
         $mirroredInfo = $json.Groups.MirroredUsers
         if ($mirroredInfo.MirroredUserEmail -or $mirroredInfo.MirroredUserGroups) {
             Write-Host "➡ Fetching mirrored group memberships..."
-
             $mirroredGroups = Get-MirroredUserGroupMemberships `
                 -MirroredUserEmail $mirroredInfo.MirroredUserEmail `
                 -MirroredUserGroups $mirroredInfo.MirroredUserGroups `
@@ -104,7 +50,7 @@ try {
         if ($result.ResultStatus -ne "Success") {
             $json.metadata.status.userCreation = "failed"
             $json.metadata.errors += $result.Message
-        
+
             Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::BadRequest
                 Body = @{
@@ -117,14 +63,14 @@ try {
             return
         }
 
-        # Add to groups if provided
+        # Group assignment
         if ($json.Groups) {
             $groupResult = Add-UserGroups -Json $json
             $dispatcherMessage += "`n`n" + $groupResult.Message
             $dispatcherErrors += $groupResult.Errors
         }
 
-        # Update ConnectWise ticket note
+        # ConnectWise note
         $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $dispatcherMessage -Internal $true
 
         if ($ticketNoteResponse.Status -ne "Success") {
@@ -132,7 +78,7 @@ try {
             $dispatcherMessage += "`n❌ Failed to update ConnectWise ticket note: $($ticketNoteResponse.Message)"
         }
 
-        # Success response
+        # Final response
         Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
             StatusCode  = [HttpStatusCode]::OK
             Body        = @{
