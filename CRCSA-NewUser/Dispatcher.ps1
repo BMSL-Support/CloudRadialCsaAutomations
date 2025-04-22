@@ -9,6 +9,7 @@ param (
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 . "$PSScriptRoot\modules\Add-UserGroups.ps1"
+. "$PSScriptRoot\modules\Format-TicketNote.ps1"
 . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
 . "$PSScriptRoot\modules\utils.ps1"
 
@@ -81,14 +82,17 @@ try {
         }
 
         # Assign groups
+        $groupResult = $null
         if ($json.Groups) {
             $groupResult = Add-UserGroups -Json $json
-            $dispatcherMessage += "`n`n" + $groupResult.Message
-            $dispatcherErrors += $groupResult.Errors
         }
 
+        # Format the final ticket note
+        $formattedNote = Format-TicketNote -Json $json -UserCreationResult $result -GroupAssignmentResult $groupResult
+
         # Update ConnectWise ticket
-        $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $dispatcherMessage -Internal $true
+        $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
+
 
         if ($ticketNoteResponse.Status -ne "Success") {
             $dispatcherErrors += "Failed to update ConnectWise ticket note: $($ticketNoteResponse.Message)"
