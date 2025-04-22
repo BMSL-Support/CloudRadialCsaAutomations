@@ -42,7 +42,7 @@ $AllOutputs = @()
 # === STEP 2: Validate JSON ===
 try {
     Write-Host "🔍 Running JSON validation..."
-    $validationResult = Test-NewUserJson -Json $JsonObject
+    $validationResult = Test-NewUserJson -Data $JsonObject
     $AllOutputs += $validationResult
 }
 catch {
