@@ -77,14 +77,46 @@ try {
             $groupResult = Add-UserGroups -Json $json
         }
 
-        # Format the final ticket note
-        $formattedNote = & "$PSScriptRoot\modules\Format-TicketNote.ps1" `
-        -Json $json `
-        -UserCreationMessage $result.Message `
-        -UserPassword $result.Password `
-        -GroupAssignmentMessage $groupResult.Message `
-        -LicenseAssignmentMessage ""
-    
+# Format the final ticket note using Format-TicketNote.ps1
+try {
+    Write-Information "INFORMATION: 🧩 Calling Format-TicketNote.ps1..."
+
+    # Debug types before call
+    function Write-DebugType($label, $obj) {
+        $typeName = if ($null -ne $obj) { $obj.GetType().FullName } else { 'null' }
+        Write-Information "DEBUG: $label = $typeName"
+    }
+
+    Write-DebugType -label "Json" -obj $Json
+    Write-DebugType -label "UserCreationMessage" -obj $userMessage
+    Write-DebugType -label "UserPassword" -obj $password
+    Write-DebugType -label "GroupAssignmentMessage" -obj $groupMsg
+    Write-DebugType -label "LicenseAssignmentMessage" -obj $licenseMsg
+
+    # Call the formatting script and capture all output
+    $ticketNote = & "$PSScriptRoot\Format-TicketNote.ps1" `
+        -Json $Json `
+        -UserCreationMessage $userMessage `
+        -UserPassword $password `
+        -GroupAssignmentMessage $groupMsg `
+        -LicenseAssignmentMessage $licenseMsg 2>&1 | Tee-Object -Variable output
+
+    # Log every line for Azure visibility
+    $output | ForEach-Object {
+        Write-Information "FORMAT-NOTE OUTPUT: $_"
+    }
+
+    if (-not $ticketNote) {
+        throw "Formatted ticket note is null or empty."
+    }
+
+    Write-Information "INFORMATION: ✅ Ticket note successfully formatted."
+
+} catch {
+    Write-Error "❌ ERROR: Failed to format ticket note. Exception: $_"
+    throw
+}
+
         # Update ConnectWise ticket
         $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
     
