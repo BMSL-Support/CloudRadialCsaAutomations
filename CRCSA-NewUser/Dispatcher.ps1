@@ -40,22 +40,13 @@ try {
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding..."
 
-        # Handle mirrored group logic
-        $mirroredInfo = $json.Groups.MirroredUsers
-        if ($mirroredInfo.MirroredUserEmail -or $mirroredInfo.MirroredUserGroups) {
-            Write-Host "➡ Fetching mirrored group memberships..."
-
-            $mirroredGroups = Get-MirroredUserGroupMemberships `
-                -MirroredUserEmail $mirroredInfo.MirroredUserEmail `
-                -MirroredUserGroups $mirroredInfo.MirroredUserGroups `
-                -TenantId $json.TenantId
-
-            foreach ($groupType in @("Teams", "Security", "Distribution", "SharedMailboxes")) {
-                if (-not $json.Groups.$groupType -or $json.Groups.$groupType.Count -eq 0) {
-                    $json.Groups.$groupType = $mirroredGroups[$groupType]
-                }
-            }
-        }
+    # Handle mirrored group logic
+    $mirroredInfo = $json.Groups.MirroredUsers
+    if ($mirroredInfo.MirroredUserEmail -or $mirroredInfo.MirroredUserGroups) {
+        Write-Host "➡ Fetching mirrored group memberships..."
+        $json.Groups += Get-MirroredUserGroupMemberships -Json $json
+        Write-Host "✅ Mirrored group memberships added to Json.Groups"
+}
 
         # Create user
         $result = Invoke-CreateNewUser -Json $json
