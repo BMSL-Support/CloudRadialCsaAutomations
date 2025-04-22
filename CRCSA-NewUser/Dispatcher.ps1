@@ -125,3 +125,34 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
+
+# === STEP 8: Create ConnectWise Ticket Note ===
+try {
+    Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
+
+    $noteResult = & "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1" -TicketId $TicketId -Message $ticketNote -Internal $true
+
+    if ($noteResult.Status -eq "Success") {
+        Write-Host "✅ Ticket note added to ConnectWise."
+    }
+    else {
+        Write-Warning "⚠️ Failed to add note: $($noteResult.Message)"
+    }
+
+    return @{
+        result  = $noteResult.Status
+        message = $ticketNote
+        noteStatus = $noteResult.Status
+        noteMessage = $noteResult.Message
+        errors  = $JsonObject.metadata.errors
+    } | ConvertTo-Json -Depth 10
+}
+catch {
+    $errorMsg = "❌ Exception while adding ConnectWise note: $($_.Exception.Message)"
+    Write-Host $errorMsg
+    return @{
+        error   = $_.Exception.Message
+        message = "Dispatcher failed during ConnectWise note creation"
+        errors  = $JsonObject.metadata.errors
+    } | ConvertTo-Json -Depth 10
+}
