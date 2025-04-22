@@ -14,14 +14,27 @@ param (
 
 # Main Logic
 try {
-    # Parse raw request and clean up placeholders
-    $raw = $Request.Body | ConvertFrom-Json -ErrorAction Stop
-    $json = Clear-Placeholders -JsonObject $raw
+    # Parse raw JSON and sanitize placeholders
+    $rawJson = $Request.Body | Out-String
+    $cleanJson = Clear-Placeholders -JsonString $rawJson
 
-    # Initialize metadata block
+    try {
+        $json = $cleanJson | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        return @{
+            message = "Dispatcher failed"
+            error   = "Conversion from JSON failed with error: $($_.Exception.Message)"
+        }
+    }
+
+    # Clean up any remaining @placeholders post-parsing
+    $json = Update-Placeholders -JsonObject $json
+
+    # Initialize metadata
     Initialize-Metadata -Json $json -Step "userCreation"
 
-    # Validate structure
+    # Validate JSON structure
     $validationErrors = Test-NewUserJson -Data $json
 
     if ($validationErrors.Count -eq 0) {
