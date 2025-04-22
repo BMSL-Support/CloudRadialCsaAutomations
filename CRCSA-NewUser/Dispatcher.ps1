@@ -9,7 +9,6 @@ param (
 . "$PSScriptRoot\modules\Create-NewUser.ps1"
 . "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
 . "$PSScriptRoot\modules\Add-UserGroups.ps1"
-. "$PSScriptRoot\modules\Format-TicketNote.ps1"
 . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
 . "$PSScriptRoot\modules\utils.ps1"
 
