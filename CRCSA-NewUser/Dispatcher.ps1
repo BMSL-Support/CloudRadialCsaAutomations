@@ -91,11 +91,11 @@ try {
         -Json $json `
         -UserCreationMessage $result.Message `
         -UserPassword $result.Password `
-        -GroupAssignmentMessage ($groupResult?.Message) `
-        -LicenseAssignmentMessage ($result.LicenseMessage)
+        -GroupAssignmentMessage $groupResult.Message `
+        -LicenseAssignmentMessage ""
     
-            # Update ConnectWise ticket
-            $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
+        # Update ConnectWise ticket
+        $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $formattedNote -Internal $true
     
 
 
