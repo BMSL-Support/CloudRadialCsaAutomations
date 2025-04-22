@@ -12,22 +12,26 @@ param (
 . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
 . "$PSScriptRoot\modules\utils.ps1"
 
+# Main Logic
 try {
-    $raw = $Request.Body | ConvertTo-Json -Depth 10
-    $rawClean = Update-Placeholders -JsonObject $raw
-    $json = $rawClean | ConvertFrom-Json -ErrorAction Stop
+    # Parse raw request and clean up placeholders
+    $raw = $Request.Body | ConvertFrom-Json -ErrorAction Stop
+    $json = Clear-Placeholders -JsonObject $raw
 
-    Initialize-Metadata -Json $json
+    # Initialize metadata block
+    Initialize-Metadata -Json $json -Step "userCreation"
 
+    # Validate structure
     $validationErrors = Test-NewUserJson -Data $json
 
     if ($validationErrors.Count -eq 0) {
         Write-Host "✅ JSON is valid. Proceeding..."
 
-        # Fetch mirrored group memberships if needed
+        # Handle mirrored group logic
         $mirroredInfo = $json.Groups.MirroredUsers
         if ($mirroredInfo.MirroredUserEmail -or $mirroredInfo.MirroredUserGroups) {
             Write-Host "➡ Fetching mirrored group memberships..."
+
             $mirroredGroups = Get-MirroredUserGroupMemberships `
                 -MirroredUserEmail $mirroredInfo.MirroredUserEmail `
                 -MirroredUserGroups $mirroredInfo.MirroredUserGroups `
@@ -63,14 +67,14 @@ try {
             return
         }
 
-        # Group assignment
+        # Assign groups
         if ($json.Groups) {
             $groupResult = Add-UserGroups -Json $json
             $dispatcherMessage += "`n`n" + $groupResult.Message
             $dispatcherErrors += $groupResult.Errors
         }
 
-        # ConnectWise note
+        # Update ConnectWise ticket
         $ticketNoteResponse = Update-ConnectWiseTicketNote -TicketId $json.TicketId -Message $dispatcherMessage -Internal $true
 
         if ($ticketNoteResponse.Status -ne "Success") {
