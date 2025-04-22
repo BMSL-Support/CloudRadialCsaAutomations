@@ -124,14 +124,25 @@ catch {
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
 
-    $noteResult = & "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1" -TicketId $TicketId -Message $ticketNote -Internal $true
+   $ticketNoteResult = .\Update-ConnectWiseTicketNote.ps1 -TicketId $TicketId -Message $ticketNote
 
-    if ($noteResult.Status -eq "Success") {
-        Write-Host "✅ Ticket note added to ConnectWise."
+# Log full JSON output
+Write-Information "OUTPUT: $($ticketNoteResult | ConvertTo-Json -Depth 5 -Compress)"
+
+# Handle failure with clearer logging
+if ($ticketNoteResult.Status -ne "Success") {
+    Write-Warning "⚠️ ConnectWise ticket note failed to add"
+    Write-Warning "Message: $($ticketNoteResult.Message)"
+    if ($ticketNoteResult.Error) {
+        Write-Error "Error: $($ticketNoteResult.Error)"
     }
-    else {
-        Write-Warning "⚠️ Failed to add note: $($noteResult.Message)"
+    if ($ticketNoteResult.Stack) {
+        Write-Verbose "Stack Trace: $($ticketNoteResult.Stack)"
     }
+}
+else {
+    Write-Information $ticketNoteResult.Message
+}
 
     return @{
         result       = $noteResult.Status
