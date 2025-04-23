@@ -107,10 +107,12 @@ if (Test-Path $licenseModule) {
 # === STEP 7: Format Final Ticket Note ===
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
-    $ticketNote = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -Json $JsonObject -ModuleOutputs $AllOutputs
+    $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -Json $JsonObject -ModuleOutputs $AllOutputs
+    $TicketId = $ticketNoteObject.TicketId
+    $ticketNote = $ticketNoteObject.Message
     Write-Host "✅ Ticket note formatted."
 }
-catch {
+catch {{
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
     Write-Host $errorMsg
     return @{
