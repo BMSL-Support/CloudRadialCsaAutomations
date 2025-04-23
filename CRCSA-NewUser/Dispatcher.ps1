@@ -69,6 +69,7 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
 $userCreationFailed = $false
 try {
     Write-Host "👤 Creating user..."
+    Write-Host "👤 JSON passed to user creation: $($JsonObject | ConvertTo-Json)"
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
     $AllOutputs["CreateUser"] = $userCreationOutput
 
