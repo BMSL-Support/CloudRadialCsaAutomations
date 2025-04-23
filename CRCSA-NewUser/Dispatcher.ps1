@@ -72,7 +72,8 @@ try {
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
     $AllOutputs["CreateUser"] = $userCreationOutput
 
-    if ($userCreationOutput.status -eq 'failure') {
+    # Check if the result status is failure
+    if ($userCreationOutput.ResultStatus -eq 'Failure') {
         $userCreationFailed = $true
         Write-Host "❌ User creation reported failure. Skipping groups and licenses."
     }
