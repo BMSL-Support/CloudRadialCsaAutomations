@@ -112,7 +112,7 @@ try {
     $ticketNote = $ticketNoteObject.Message
     Write-Host "✅ Ticket note formatted."
 }
-catch {{
+catch {
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
     Write-Host $errorMsg
     return @{
