@@ -72,7 +72,7 @@ try {
     Write-Host "👤 JSON passed to user creation: $($JsonObject | ConvertTo-Json)"
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
     $AllOutputs["CreateUser"] = $userCreationOutput
-    Write-Host "👤 Output of user creation: $($userCreationOutput)"
+    Write-Host "👤 Output of user creation: $userCreationOutput"
     # Check if the result status is failure
     if ($userCreationOutput.ResultStatus -eq 'failed') {
         $userCreationFailed = $true
