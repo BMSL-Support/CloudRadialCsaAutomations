@@ -74,7 +74,7 @@ try {
     $AllOutputs["CreateUser"] = $userCreationOutput
 
     # Check if the result status is failure
-    if ($userCreationOutput.ResultStatus -eq 'Failure') {
+    if ($userCreationOutput.ResultStatus -eq 'failed') {
         $userCreationFailed = $true
         Write-Host "❌ User creation reported failure. Skipping groups and licenses."
     }
