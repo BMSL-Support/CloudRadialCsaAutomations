@@ -69,10 +69,8 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
 $userCreationFailed = $false
 try {
     Write-Host "👤 Creating user..."
-    Write-Host "👤 JSON passed to user creation: $($JsonObject | ConvertTo-Json)"
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
     $AllOutputs["CreateUser"] = $userCreationOutput
-    Write-Host "👤 Output of user creation: $userCreationOutput"
     # Check if the result status is failure
     if ($userCreationOutput.ResultStatus -eq 'failed') {
         $userCreationFailed = $true
@@ -139,8 +137,6 @@ try {
 
     . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
     $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message $ticketNote
-
-    Write-Information "OUTPUT: $($ticketNoteResult | ConvertTo-Json -Depth 5 -Compress)"
 
     if ($ticketNoteResult.Status -ne "Success") {
         Write-Warning "⚠️ ConnectWise ticket note failed to add"
