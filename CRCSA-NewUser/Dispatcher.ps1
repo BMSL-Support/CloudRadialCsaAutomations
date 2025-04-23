@@ -126,7 +126,11 @@ catch {
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
 
-    $ticketNoteResult = & "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1" -TicketId $TicketId -Message $ticketNote
+    # Load the ticket note function from the script (dot-source it)
+    . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
+
+    # Now call the function explicitly
+    $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message $ticketNote
 
     # Log full JSON output for diagnostics
     Write-Information "OUTPUT: $($ticketNoteResult | ConvertTo-Json -Depth 5 -Compress)"
