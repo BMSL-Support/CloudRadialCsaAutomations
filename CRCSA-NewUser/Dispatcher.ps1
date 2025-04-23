@@ -37,13 +37,13 @@ catch {
 }
 
 # === MODULE EXECUTION LOGGING ===
-$AllOutputs = @()
+$AllOutputs = @{}
 
 # === STEP 2: Validate JSON ===
 try {
     Write-Host "🔍 Running JSON validation..."
     $validationResult = Test-NewUserJson -Data $JsonObject
-    $AllOutputs += $validationResult
+    $AllOutputs["Validation"] = $validationResult
 }
 catch {
     $errorMsg = "❌ Exception during JSON validation: $($_.Exception.Message)"
@@ -56,7 +56,7 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
     try {
         Write-Host "➡ Fetching mirrored group memberships..."
         $groupResult = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
-        $AllOutputs += "✅ Mirrored groups fetched successfully."
+        $AllOutputs["MirroredGroups"] = $groupResult
     }
     catch {
         $errorMsg = "❌ Exception during mirrored group fetch: $($_.Exception.Message)"
@@ -70,9 +70,8 @@ $userCreationFailed = $false
 try {
     Write-Host "👤 Creating user..."
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
-    $AllOutputs += $userCreationOutput
+    $AllOutputs["CreateUser"] = $userCreationOutput
 
-    # Check for failure flag
     if ($userCreationOutput.status -eq 'failure') {
         $userCreationFailed = $true
         Write-Host "❌ User creation reported failure. Skipping groups and licenses."
@@ -90,7 +89,7 @@ if (-not $userCreationFailed) {
     try {
         Write-Host "👥 Adding user to groups..."
         $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
-        $AllOutputs += $groupAssignmentOutput
+        $AllOutputs["Groups"] = $groupAssignmentOutput
     }
     catch {
         $errorMsg = "❌ Exception during group assignment: $($_.Exception.Message)"
@@ -105,7 +104,7 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
     try {
         Write-Host "🎫 Assigning licenses..."
         $licenseOutput = & $licenseModule -Json $JsonObject
-        $AllOutputs += $licenseOutput
+        $AllOutputs["Licenses"] = $licenseOutput
     }
     catch {
         $errorMsg = "❌ Exception during licensing: $($_.Exception.Message)"
@@ -136,16 +135,11 @@ catch {
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
 
-    # Load the ticket note function from the script (dot-source it)
     . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
-
-    # Now call the function explicitly
     $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message $ticketNote
 
-    # Log full JSON output for diagnostics
     Write-Information "OUTPUT: $($ticketNoteResult | ConvertTo-Json -Depth 5 -Compress)"
 
-    # Handle failure with clear warnings
     if ($ticketNoteResult.Status -ne "Success") {
         Write-Warning "⚠️ ConnectWise ticket note failed to add"
         Write-Warning "Message: $($ticketNoteResult.Message)"
