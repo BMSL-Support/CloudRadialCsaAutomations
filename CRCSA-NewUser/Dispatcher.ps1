@@ -66,32 +66,42 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
 }
 
 # === STEP 4: Create User ===
+$userCreationFailed = $false
 try {
     Write-Host "👤 Creating user..."
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
     $AllOutputs += $userCreationOutput
+
+    # Check for failure flag
+    if ($userCreationOutput.status -eq 'failure') {
+        $userCreationFailed = $true
+        Write-Host "❌ User creation reported failure. Skipping groups and licenses."
+    }
 }
 catch {
     $errorMsg = "❌ Exception during user creation: $($_.Exception.Message)"
     $JsonObject.metadata.errors += $errorMsg
     Write-Host $errorMsg
+    $userCreationFailed = $true
 }
 
 # === STEP 5: Add to Groups ===
-try {
-    Write-Host "👥 Adding user to groups..."
-    $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
-    $AllOutputs += $groupAssignmentOutput
-}
-catch {
-    $errorMsg = "❌ Exception during group assignment: $($_.Exception.Message)"
-    $JsonObject.metadata.errors += $errorMsg
-    Write-Host $errorMsg
+if (-not $userCreationFailed) {
+    try {
+        Write-Host "👥 Adding user to groups..."
+        $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
+        $AllOutputs += $groupAssignmentOutput
+    }
+    catch {
+        $errorMsg = "❌ Exception during group assignment: $($_.Exception.Message)"
+        $JsonObject.metadata.errors += $errorMsg
+        Write-Host $errorMsg
+    }
 }
 
 # === STEP 6: Licensing (optional) ===
 $licenseModule = "$PSScriptRoot\modules\Assign-License.ps1"
-if (Test-Path $licenseModule) {
+if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
     try {
         Write-Host "🎫 Assigning licenses..."
         $licenseOutput = & $licenseModule -Json $JsonObject
