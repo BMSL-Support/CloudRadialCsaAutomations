@@ -55,8 +55,8 @@ catch {
 if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.MirroredUsers.MirroredUserGroups) {
     try {
         Write-Host "➡ Fetching mirrored group memberships..."
-        $groupResult = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
-        $AllOutputs["MirroredGroups"] = $groupResult
+       $JsonObject = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
+$AllOutputs["Json"] = $JsonObject
     }
     catch {
         $errorMsg = "❌ Exception during mirrored group fetch: $($_.Exception.Message)"
