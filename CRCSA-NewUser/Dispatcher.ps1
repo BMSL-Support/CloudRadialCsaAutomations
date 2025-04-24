@@ -55,13 +55,13 @@ catch {
 if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.MirroredUsers.MirroredUserGroups) {
     try {
         Write-Host "➡ Fetching mirrored group memberships..."
-        $mirroredResult = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
+        & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
 
-        # Patch the returned values back into the main object
-        $JsonObject.Groups   = $mirroredResult.Groups
-        $JsonObject.metadata = $mirroredResult.metadata
-
-        $AllOutputs["MirroredGroups"] = $mirroredResult
+        # No patching needed; module modifies $JsonObject in-place
+        $AllOutputs["MirroredGroups"] = @{
+            Groups   = $JsonObject.Groups
+            Metadata = $JsonObject.metadata
+        }
     }
     catch {
         $errorMsg = "❌ Exception during mirrored group fetch: $($_.Exception.Message)"
