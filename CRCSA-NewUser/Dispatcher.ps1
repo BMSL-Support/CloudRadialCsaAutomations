@@ -18,6 +18,14 @@ try {
     $JsonObject = $CleanedJson | ConvertFrom-Json -Depth 10
     $JsonObject = Update-Placeholders -JsonObject $JsonObject
 
+    # === Ensure metadata and errors array exist ===
+    if (-not $JsonObject.PSObject.Properties["metadata"]) {
+        $JsonObject | Add-Member -MemberType NoteProperty -Name "metadata" -Value @{}
+    }
+    if (-not $JsonObject.metadata.PSObject.Properties["errors"]) {
+        $JsonObject.metadata.errors = @()
+    }
+
     Write-Host "✅ Placeholders removed and JSON parsed."
 }
 catch {
@@ -55,8 +63,8 @@ catch {
 if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.MirroredUsers.MirroredUserGroups) {
     try {
         Write-Host "➡ Fetching mirrored group memberships..."
-       $JsonObject = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
-$AllOutputs["Json"] = $JsonObject
+        $JsonObject = & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
+        $AllOutputs["Json"] = $JsonObject
     }
     catch {
         $errorMsg = "❌ Exception during mirrored group fetch: $($_.Exception.Message)"
@@ -71,7 +79,6 @@ try {
     Write-Host "👤 Creating user..."
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
     $AllOutputs["CreateUser"] = $userCreationOutput
-    # Check if the result status is failure
     if ($userCreationOutput.ResultStatus -eq 'failed') {
         $userCreationFailed = $true
         Write-Host "❌ User creation reported failure. Skipping groups and licenses."
