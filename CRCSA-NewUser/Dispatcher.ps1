@@ -8,6 +8,7 @@ param (
 # === LOAD MODULES ===
 . "$PSScriptRoot\modules\utils.ps1"
 $InformationPreference = 'Continue'
+
 # === STEP 0: Read and Clean JSON ===
 try {
     Write-Host "📥 Reading JSON input..."
@@ -44,11 +45,15 @@ try {
     Write-Host "🔍 Running JSON validation..."
     $validationResult = Test-NewUserJson -Data $JsonObject
     $AllOutputs["Validation"] = $validationResult
+
+    # Update metadata status after validation
+    $JsonObject.metadata.status.validation = "successful"
 }
 catch {
     $errorMsg = "❌ Exception during JSON validation: $($_.Exception.Message)"
     $JsonObject.metadata.errors += $errorMsg
     Write-Host $errorMsg
+    $JsonObject.metadata.status.validation = "failed"
 }
 
 # === STEP 3: Group Mirroring ===
@@ -62,11 +67,15 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
             Groups   = $JsonObject.Groups
             Metadata = $JsonObject.metadata
         }
+
+        # Update metadata status
+        $JsonObject.metadata.status.groupAssignment = "successful"
     }
     catch {
         $errorMsg = "❌ Exception during mirrored group fetch: $($_.Exception.Message)"
         $JsonObject.metadata.errors += $errorMsg
         Write-Host $errorMsg
+        $JsonObject.metadata.status.groupAssignment = "failed"
     }
 }
 
@@ -82,26 +91,39 @@ try {
         $userCreationFailed = $true
         Write-Host "❌ User creation reported failure. Skipping groups and licenses."
     }
+
+    # Update metadata status after user creation
+    if ($userCreationFailed) {
+        $JsonObject.metadata.status.userCreation = "failed"
+    } else {
+        $JsonObject.metadata.status.userCreation = "successful"
+    }
 }
 catch {
     $errorMsg = "❌ Exception during user creation: $($_.Exception.Message)"
     $JsonObject.metadata.errors += $errorMsg
     Write-Host $errorMsg
     $userCreationFailed = $true
+    $JsonObject.metadata.status.userCreation = "failed"
 }
 
 Write-Host "🧪 After User Creation: $($JsonObject | ConvertTo-Json -Depth 10)"
+
 # === STEP 5: Add to Groups ===
 if (-not $userCreationFailed) {
     try {
         Write-Host "👥 Adding user to groups..."
         $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
         $AllOutputs["Groups"] = $groupAssignmentOutput
+
+        # Update metadata status after group assignment
+        $JsonObject.metadata.status.groupAssignment = "successful"
     }
     catch {
         $errorMsg = "❌ Exception during group assignment: $($_.Exception.Message)"
         $JsonObject.metadata.errors += $errorMsg
         Write-Host $errorMsg
+        $JsonObject.metadata.status.groupAssignment = "failed"
     }
 }
 
@@ -112,14 +134,20 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
         Write-Host "🎫 Assigning licenses..."
         $licenseOutput = & $licenseModule -Json $JsonObject
         $AllOutputs["Licenses"] = $licenseOutput
+
+        # Update metadata status after licensing
+        $JsonObject.metadata.status.licensing = "successful"
     }
     catch {
         $errorMsg = "❌ Exception during licensing: $($_.Exception.Message)"
         $JsonObject.metadata.errors += $errorMsg
         Write-Host $errorMsg
+        $JsonObject.metadata.status.licensing = "failed"
     }
 }
+
 Write-Host "🧪 After Licensing: $($JsonObject | ConvertTo-Json -Depth 10)"
+
 # === STEP 7: Format Final Ticket Note ===
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
@@ -137,7 +165,9 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
+
 Write-Host "🧪 Ticket Note for Ticket ${TicketId}: $($ticketNote | ConvertTo-Json -Depth 10)"
+
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
