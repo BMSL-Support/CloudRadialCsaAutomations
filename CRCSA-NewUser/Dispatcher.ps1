@@ -64,7 +64,7 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
         Write-Host $errorMsg
     }
 }
-
+Write-Host "$JsonObject"
 # === STEP 4: Create User ===
 $userCreationFailed = $false
 try {
