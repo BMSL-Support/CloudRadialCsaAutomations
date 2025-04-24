@@ -90,6 +90,7 @@ catch {
     $userCreationFailed = $true
 }
 
+Write-Host "🧪 After User Creation: $($JsonObject | ConvertTo-Json -Depth 10)"
 # === STEP 5: Add to Groups ===
 if (-not $userCreationFailed) {
     try {
@@ -118,7 +119,7 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
         Write-Host $errorMsg
     }
 }
-
+Write-Host "🧪 After Licensing: $($JsonObject | ConvertTo-Json -Depth 10)"
 # === STEP 7: Format Final Ticket Note ===
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
@@ -136,7 +137,7 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
-
+Write-Host "🧪 Ticket Note for Ticket ${TicketId}: $($ticketNote | ConvertTo-Json -Depth 10)"
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
