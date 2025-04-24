@@ -7,7 +7,7 @@ param (
 
 # === LOAD MODULES ===
 . "$PSScriptRoot\modules\utils.ps1"
-
+$InformationPreference = 'Continue'
 # === STEP 0: Read and Clean JSON ===
 try {
     Write-Host "📥 Reading JSON input..."
