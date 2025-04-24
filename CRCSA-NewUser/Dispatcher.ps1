@@ -19,12 +19,13 @@ try {
     $JsonObject = Update-Placeholders -JsonObject $JsonObject
 
     # === Ensure metadata and errors array exist ===
-    if (-not $JsonObject.PSObject.Properties["metadata"]) {
-        $JsonObject | Add-Member -MemberType NoteProperty -Name "metadata" -Value @{}
-    }
-    if (-not $JsonObject.metadata.PSObject.Properties["errors"]) {
-        $JsonObject.metadata.errors = @()
-    }
+# Ensure metadata and errors array exist safely
+if (-not ($JsonObject.PSObject.Properties["metadata"] -and $JsonObject.metadata -is [object])) {
+    $JsonObject | Add-Member -MemberType NoteProperty -Name "metadata" -Value @{}
+}
+if (-not ($JsonObject.metadata.PSObject.Properties["errors"] -and $JsonObject.metadata.errors -is [System.Collections.IList])) {
+    $JsonObject.metadata.errors = @()
+}
 
     Write-Host "✅ Placeholders removed and JSON parsed."
 }
