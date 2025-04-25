@@ -85,9 +85,28 @@ try {
     }
 }
 catch {
-    $errorMsg = "❌ Validation error: $($_.Exception.Message)"
+    $errorMsg = "❌ Exception during JSON validation: $($_.Exception.Message)"
+    
+    # Ensure metadata exists before accessing
+    if (-not $JsonObject.metadata) {
+        Initialize-Metadata -Json $JsonObject
+    }
+
+    # Safely add errors
+    if (-not $JsonObject.metadata.errors) {
+        $JsonObject.metadata | Add-Member -NotePropertyName 'errors' -NotePropertyValue @()
+    }
+    
     $JsonObject.metadata.errors += $errorMsg
-    throw $errorMsg
+    $JsonObject.metadata.status.validation = "failed"
+    
+    Write-Host $errorMsg
+    return @{
+        status  = "failed"
+        error   = $errorMsg
+        message = "Dispatcher failed at JSON parsing"
+        metadata = $JsonObject.metadata
+    } | ConvertTo-Json -Depth 10
 }
 # === MAIN EXECUTION FLOW ===
 try {
