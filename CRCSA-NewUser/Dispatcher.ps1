@@ -113,21 +113,39 @@ try {
     Initialize-Metadata -Json $JsonObject
 
     # STEP 1: JSON Validation
-    try {
-        Write-Log "🔍 Validating JSON structure..."
-        $validationResult = Test-NewUserJson -Data $JsonObject
-        $AllOutputs.Steps["Validation"] = $validationResult
-        
-        if (-not $validationResult.Valid) {
-            throw $validationResult.Message
-        }
-        $JsonObject.metadata.status.validation = "successful"
-    }
-    catch {
-        $errorMsg = "❌ Validation failed: $($_.Exception.Message)"
-        $JsonObject.metadata.errors += $errorMsg
+try {
+    Write-Log "🔍 Running JSON validation..."
+    
+    # Run validation with non-strict mode (groups are optional)
+    $validationResult = Test-NewUserJson -Data $JsonObject -StrictValidation:$false
+
+    if (-not $validationResult.Valid) {
+        $errorMsg = "❌ JSON validation failed: $($validationResult.Message)`n" +
+                    ($validationResult.Errors -join "`n")
         throw $errorMsg
     }
+
+    $AllOutputs.Steps["Validation"] = $validationResult
+    $JsonObject.metadata.status.validation = if ($validationResult.Warnings.Count -gt 0) {
+        "completed_with_warnings"
+    } else {
+        "successful"
+    }
+
+    # Add warnings to metadata if any
+    if ($validationResult.Warnings.Count -gt 0) {
+        $JsonObject.metadata.warnings = @($JsonObject.metadata.warnings) + $validationResult.Warnings
+    }
+
+    Write-Log "✅ Validation passed with $($validationResult.Warnings.Count) warnings"
+}
+catch {
+    $errorMsg = "❌ Validation error: $($_.Exception.Message)"
+    $JsonObject.metadata.errors += $errorMsg
+    $JsonObject.metadata.status.validation = "failed"
+    Write-Log $errorMsg -Level 'Error'
+    throw  # This will be caught by the main try-catch
+}
 
     # STEP 2: Group Mirroring
     if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail) {
