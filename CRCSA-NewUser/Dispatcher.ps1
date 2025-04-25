@@ -28,25 +28,56 @@ $VerbosePreference = 'Continue'
 $InformationPreference = 'Continue'
 
 # === INITIALIZATION ===
+# === INITIALIZATION ===
+$ErrorActionPreference = 'Stop'
+$DebugPreference = 'Continue'
+$global:FunctionStartTime = [DateTime]::UtcNow
+$AllOutputs = @{Timestamp=$global:FunctionStartTime.ToString('o')}
+
 try {
-    # Parse JSON input
-    $JsonObject = $Request.Body | ConvertFrom-Json -Depth 10
+    # === STEP 1: CLEAN AND PARSE JSON ===
+    Write-Host "🧹 Cleaning JSON input..."
+    $rawJson = $Request.Body | Out-String
+    $cleanedJson = Clear-Placeholders -JsonString $rawJson
     
-    # Initialize metadata first
+    Write-Debug "Cleaned JSON:`n$cleanedJson"
+    
+    $JsonObject = $cleanedJson | ConvertFrom-Json -Depth 10
+    $JsonObject = Update-Placeholders -JsonObject $JsonObject
+    
+    # === STEP 2: INITIALIZE METADATA ===
     Initialize-Metadata -Json $JsonObject
     
-    $global:FunctionStartTime = [DateTime]::UtcNow
-    $AllOutputs = @{
-        Timestamp = $global:FunctionStartTime.ToString('o')
-        Steps     = @{}
-        Errors    = @()
+    # === STEP 3: VALIDATION ===
+    Write-Host "🔍 Validating JSON structure..."
+    $validationResult = Test-NewUserJson -Data $JsonObject
+    
+    if (-not $validationResult.IsValid) {
+        throw "Validation failed: $($validationResult.Errors -join ', ')"
     }
-
-    function Write-Log {
-        param($Message, $Level = 'Information')
-        $timestamp = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
-        Write-Host "[$timestamp][$Level] $Message"
-    }
+    
+    $AllOutputs.Validation = $validationResult
+    $JsonObject.metadata.status.validation = "success"
+    
+    # [Rest of your processing steps...]
+    
+    # Successful response
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::OK
+        Body = @{status="success";metadata=$JsonObject.metadata}
+    })
+}
+catch {
+    Write-Error "Processing failed: $($_.Exception.Message)"
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::BadRequest
+        Body = @{
+            status = "failed"
+            error = $_.Exception.Message
+            metadata = if ($JsonObject.metadata) { $JsonObject.metadata } else { $null }
+        }
+    })
+}
 
     # === MAIN EXECUTION FLOW ===
     # STEP 1: JSON Validation
