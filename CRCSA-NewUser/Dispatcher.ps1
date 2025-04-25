@@ -242,18 +242,17 @@ try {
     }
 }
 catch {
-    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
-    
-    # Ensure metadata is properly initialized
-    Initialize-Metadata -Json $JsonObject
-    
-    # Safely add error to metadata
-    $JsonObject.metadata.errors += $errorMsg
-    
-    # Update step status
-    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
-        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
-    }
+    Write-Host "❌ Exception during dispatch: $_"
+
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::InternalServerError
+        Body = @{
+            message = "Dispatcher failed"
+            error   = $_.Exception.Message
+        }
+        ContentType = "application/json"
+    })
+}
     
     Write-Host $errorMsg -ForegroundColor Red
     Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
