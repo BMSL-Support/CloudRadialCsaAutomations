@@ -5,10 +5,6 @@ param($Request, $TriggerMetadata)
 
 # ====== MODULE LOADING ======
 # Load modules
-. "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1"
-. "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
-. "$PSScriptRoot\modules\Add-UserGroups.ps1"
-. "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
 . "$PSScriptRoot\modules\utils.ps1"
 
 
