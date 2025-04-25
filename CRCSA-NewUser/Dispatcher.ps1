@@ -103,7 +103,7 @@ catch {
     $userCreationFailed = $true
     $JsonObject.metadata.status.userCreation = "failed"
 }
-
+Write-Host "📤 CreateUser module output: $($userCreationOutput | ConvertTo-Json -Depth 5)"
 # === STEP 5: Add to Groups ===
 if (-not $userCreationFailed) {
     try {
