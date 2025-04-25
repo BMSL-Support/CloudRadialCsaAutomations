@@ -10,6 +10,16 @@ $VerbosePreference = 'Continue'
 $InformationPreference = 'Continue'
 
 # === INITIALIZATION ===
+if (-not $JsonObject.metadata) {
+    Initialize-Metadata -Json $JsonObject
+}
+else {
+    # Ensure legacy format compatibility
+    if (-not $JsonObject.metadata.PSObject.Properties['status']) {
+        $JsonObject.metadata | Add-Member -NotePropertyName 'status' -NotePropertyValue @{}
+    }
+}
+
 $global:FunctionStartTime = [DateTime]::UtcNow
 $AllOutputs = @{
     Timestamp = $global:FunctionStartTime.ToString('o')
