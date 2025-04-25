@@ -3,6 +3,22 @@ using namespace System.Net
 # REQUIRED: Azure Functions parameter declaration
 param($Request, $TriggerMetadata)
 
+# Initialize execution state tracking
+$ExecutionState = @{
+    CurrentStep = "initialization"
+    Steps = @(
+        @{Name = "initialization"; Status = "started"},
+        @{Name = "validation"; Status = "pending"},
+        @{Name = "user_creation"; Status = "pending"},
+        @{Name = "group_assignment"; Status = "pending"},
+        @{Name = "licensing"; Status = "pending"},
+        @{Name = "ticket_update"; Status = "pending"}
+    )
+}
+
+# Ensure metadata exists before any processing
+Initialize-Metadata -Json $JsonObject
+
 # Enable strict error handling
 $ErrorActionPreference = 'Stop'
 $DebugPreference = 'Continue'
@@ -62,19 +78,34 @@ try {
     }
 }
 catch {
-    $errorMsg = "❌ Module loading failed: $($_.Exception.Message)"
-    Write-Log $errorMsg -Level 'Error'
+    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
+    
+    # Ensure metadata is properly initialized
+    Initialize-Metadata -Json $JsonObject
+    
+    # Safely add error to metadata
+    $JsonObject.metadata.errors += $errorMsg
+    
+    # Update step status
+    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
+        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
+    }
+    
+    Write-Host $errorMsg -ForegroundColor Red
+    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
+    
     return @{
-        status  = "failed"
-        error   = $errorMsg
-        message = "Dispatcher initialization failed"
-        details = @{
-            error = $_.Exception | Select-Object *
-            availableModules = (Get-ChildItem "$PSScriptRoot\modules" | Select-Object Name)
+        status   = "failed"
+        error    = $errorMsg
+        message  = "Processing stopped due to errors"
+        metadata = $JsonObject.metadata
+        debug    = @{
+            timestamp    = [DateTime]::UtcNow.ToString('o')
+            currentStep  = $ExecutionState.CurrentStep
+            errorDetails = $_.Exception | Select-Object *
         }
     } | ConvertTo-Json -Depth 5
 }
-
 # === STEP 0: PROCESS INPUT ===
 try {
     Write-Host "🔍 Running JSON validation..."
@@ -95,28 +126,33 @@ try {
     }
 }
 catch {
-    $errorMsg = "❌ Exception during JSON validation: $($_.Exception.Message)"
+    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
     
-    # Ensure metadata exists before accessing
-    if (-not $JsonObject.metadata) {
-        Initialize-Metadata -Json $JsonObject
-    }
-
-    # Safely add errors
-    if (-not $JsonObject.metadata.errors) {
-        $JsonObject.metadata | Add-Member -NotePropertyName 'errors' -NotePropertyValue @()
-    }
+    # Ensure metadata is properly initialized
+    Initialize-Metadata -Json $JsonObject
     
+    # Safely add error to metadata
     $JsonObject.metadata.errors += $errorMsg
-    $JsonObject.metadata.status.validation = "failed"
     
-    Write-Host $errorMsg
+    # Update step status
+    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
+        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
+    }
+    
+    Write-Host $errorMsg -ForegroundColor Red
+    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
+    
     return @{
-        status  = "failed"
-        error   = $errorMsg
-        message = "Dispatcher failed at JSON parsing"
+        status   = "failed"
+        error    = $errorMsg
+        message  = "Processing stopped due to errors"
         metadata = $JsonObject.metadata
-    } | ConvertTo-Json -Depth 10
+        debug    = @{
+            timestamp    = [DateTime]::UtcNow.ToString('o')
+            currentStep  = $ExecutionState.CurrentStep
+            errorDetails = $_.Exception | Select-Object *
+        }
+    } | ConvertTo-Json -Depth 5
 }
 # === MAIN EXECUTION FLOW ===
 try {
@@ -151,11 +187,33 @@ try {
     Write-Log "✅ Validation passed with $($validationResult.Warnings.Count) warnings"
 }
 catch {
-    $errorMsg = "❌ Validation error: $($_.Exception.Message)"
+    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
+    
+    # Ensure metadata is properly initialized
+    Initialize-Metadata -Json $JsonObject
+    
+    # Safely add error to metadata
     $JsonObject.metadata.errors += $errorMsg
-    $JsonObject.metadata.status.validation = "failed"
-    Write-Log $errorMsg -Level 'Error'
-    throw  # This will be caught by the main try-catch
+    
+    # Update step status
+    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
+        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
+    }
+    
+    Write-Host $errorMsg -ForegroundColor Red
+    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
+    
+    return @{
+        status   = "failed"
+        error    = $errorMsg
+        message  = "Processing stopped due to errors"
+        metadata = $JsonObject.metadata
+        debug    = @{
+            timestamp    = [DateTime]::UtcNow.ToString('o')
+            currentStep  = $ExecutionState.CurrentStep
+            errorDetails = $_.Exception | Select-Object *
+        }
+    } | ConvertTo-Json -Depth 5
 }
 
     # STEP 2: Group Mirroring
@@ -190,19 +248,35 @@ catch {
         $AllOutputs.Steps["CreateUser"] = $userCreationOutput
         $JsonObject.metadata.status.userCreation = "successful"
     }
-    catch {
-        $errorMsg = "❌ User creation failed: $($_.Exception.Message)"
-        $JsonObject.metadata.errors += $errorMsg
-        $JsonObject.metadata.status.userCreation = "failed"
-        
-        return @{
-            status  = "failed"
-            error   = $errorMsg
-            message = "User creation failed"
-            outputs = $AllOutputs
-            debug   = $userCreationOutput.Debug
-        } | ConvertTo-Json -Depth 5
+   catch {
+    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
+    
+    # Ensure metadata is properly initialized
+    Initialize-Metadata -Json $JsonObject
+    
+    # Safely add error to metadata
+    $JsonObject.metadata.errors += $errorMsg
+    
+    # Update step status
+    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
+        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
     }
+    
+    Write-Host $errorMsg -ForegroundColor Red
+    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
+    
+    return @{
+        status   = "failed"
+        error    = $errorMsg
+        message  = "Processing stopped due to errors"
+        metadata = $JsonObject.metadata
+        debug    = @{
+            timestamp    = [DateTime]::UtcNow.ToString('o')
+            currentStep  = $ExecutionState.CurrentStep
+            errorDetails = $_.Exception | Select-Object *
+        }
+    } | ConvertTo-Json -Depth 5
+}
 
     # STEP 4: Group Assignment
     if (-not $userCreationFailed) {
@@ -250,16 +324,34 @@ catch {
         $ticketNote = $ticketNoteObject.Message
     }
     catch {
-        $errorMsg = "❌ Ticket note generation failed: $($_.Exception.Message)"
-        Write-Log $errorMsg -Level 'Error'
-        return @{
-            status  = "partial"
-            error   = $errorMsg
-            message = "Processing completed but ticket note failed"
-            outputs = $AllOutputs
-        } | ConvertTo-Json -Depth 5
+    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
+    
+    # Ensure metadata is properly initialized
+    Initialize-Metadata -Json $JsonObject
+    
+    # Safely add error to metadata
+    $JsonObject.metadata.errors += $errorMsg
+    
+    # Update step status
+    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
+        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
     }
-
+    
+    Write-Host $errorMsg -ForegroundColor Red
+    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
+    
+    return @{
+        status   = "failed"
+        error    = $errorMsg
+        message  = "Processing stopped due to errors"
+        metadata = $JsonObject.metadata
+        debug    = @{
+            timestamp    = [DateTime]::UtcNow.ToString('o')
+            currentStep  = $ExecutionState.CurrentStep
+            errorDetails = $_.Exception | Select-Object *
+        }
+    } | ConvertTo-Json -Depth 5
+}
     # STEP 7: Update Ticket
     try {
         Write-Log "📬 Updating ticket $TicketId..."
@@ -291,13 +383,31 @@ catch {
     }
 }
 catch {
-    $errorMsg = "❌ Dispatcher fatal error: $($_.Exception.Message)"
-    Write-Log $errorMsg -Level 'Error'
+    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
+    
+    # Ensure metadata is properly initialized
+    Initialize-Metadata -Json $JsonObject
+    
+    # Safely add error to metadata
+    $JsonObject.metadata.errors += $errorMsg
+    
+    # Update step status
+    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
+        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
+    }
+    
+    Write-Host $errorMsg -ForegroundColor Red
+    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
+    
     return @{
-        status  = "failed"
-        error   = $errorMsg
-        message = "Dispatcher encountered a fatal error"
-        outputs = $AllOutputs
-        stackTrace = $_.ScriptStackTrace
+        status   = "failed"
+        error    = $errorMsg
+        message  = "Processing stopped due to errors"
+        metadata = $JsonObject.metadata
+        debug    = @{
+            timestamp    = [DateTime]::UtcNow.ToString('o')
+            currentStep  = $ExecutionState.CurrentStep
+            errorDetails = $_.Exception | Select-Object *
+        }
     } | ConvertTo-Json -Depth 5
 }
