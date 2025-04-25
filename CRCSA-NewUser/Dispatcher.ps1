@@ -46,26 +46,24 @@ try {
     
     # === STEP 2: INITIALIZE METADATA ===
     Initialize-Metadata -Json $JsonObject
-    
-    # === STEP 3: VALIDATION ===
-    Write-Host "🔍 Validating JSON structure..."
-    $validationResult = Test-NewUserJson -Data $JsonObject
-    
-    if (-not $validationResult.IsValid) {
-        throw "Validation failed: $($validationResult.Errors -join ', ')"
-    }
-    
-    $AllOutputs.Validation = $validationResult
-    $JsonObject.metadata.status.validation = "success"
-    
-    # [Rest of your processing steps...]
-    
+}
+catch {
+    Write-Error "Error during initialization: $($_.Exception.Message)"
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::BadRequest
+        Body = @{
+            status = "failed"
+            error = $_.Exception.Message
+        }
+    })
+    return
+}
     # Successful response
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::OK
         Body = @{status="success";metadata=$JsonObject.metadata}
     })
-}
+
 catch {
     Write-Error "Processing failed: $($_.Exception.Message)"
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
@@ -77,7 +75,6 @@ catch {
         }
     })
 }
-
     # === MAIN EXECUTION FLOW ===
     # STEP 1: JSON Validation
     try {
