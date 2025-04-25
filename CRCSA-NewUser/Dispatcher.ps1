@@ -302,7 +302,7 @@ catch {
             metadata = $JsonObject.metadata
         } | ConvertTo-Json
     })
-}
+
 catch {
     Write-Error "Processing failed: $($_.Exception.Message)"
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
