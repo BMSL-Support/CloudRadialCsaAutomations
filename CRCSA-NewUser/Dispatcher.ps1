@@ -67,46 +67,28 @@ catch {
 
 # === STEP 0: PROCESS INPUT ===
 try {
-    Write-Log "📥 Reading JSON input..."
-    $rawJson = ($Request.Body | Out-String).Trim()
-    Write-Debug "Raw input JSON:`n$rawJson"
-
-    # Validate basic JSON structure
-    if ([string]::IsNullOrWhiteSpace($rawJson)) {
-        throw "Empty request body received"
+    Write-Host "🔍 Running JSON validation..."
+    $validationResult = Test-NewUserJson -Data $JsonObject
+    
+    if (-not $validationResult.IsValid) {
+        throw "Validation failed: $($validationResult.Errors -join ', ')"
     }
-
-    # Clean and parse JSON
-    $CleanedJson = Clear-Placeholders -JsonString $rawJson
-    $JsonObject = $CleanedJson | ConvertFrom-Json -Depth 10
-    $JsonObject = Update-Placeholders -JsonObject $JsonObject
-
-    # Validate required fields
-    $requiredFields = @('TenantId', 'TicketId', 'AccountDetails')
-    foreach ($field in $requiredFields) {
-        if (-not $JsonObject.$field) {
-            throw "Missing required field: $field"
-        }
+    
+    $AllOutputs["Validation"] = @{
+        Status = if ($validationResult.Warnings) {"completed_with_warnings"} else {"success"}
+        Errors = $validationResult.Errors
+        Warnings = $validationResult.Warnings
     }
-
-    if (-not $JsonObject.AccountDetails.UserPrincipalName) {
-        throw "Missing UserPrincipalName in AccountDetails"
+    
+    if ($validationResult.Warnings) {
+        Write-Warning "Validation completed with warnings: $($validationResult.Warnings -join ', ')"
     }
-
-    Write-Log "✅ JSON parsed and validated. Ticket ID: $($JsonObject.TicketId)"
 }
 catch {
-    $errorMsg = "❌ JSON processing failed: $($_.Exception.Message)"
-    Write-Log $errorMsg -Level 'Error'
-    return @{
-        status  = "failed"
-        error   = $errorMsg
-        message = "Dispatcher failed at JSON parsing"
-        input   = $rawJson
-        errorDetails = $_.Exception | Select-Object *
-    } | ConvertTo-Json -Depth 5
+    $errorMsg = "❌ Validation error: $($_.Exception.Message)"
+    $JsonObject.metadata.errors += $errorMsg
+    throw $errorMsg
 }
-
 # === MAIN EXECUTION FLOW ===
 try {
     # Initialize metadata
