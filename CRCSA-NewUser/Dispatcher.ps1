@@ -4,32 +4,13 @@ using namespace System.Net
 param($Request, $TriggerMetadata)
 
 # ====== MODULE LOADING ======
-try {
-    # Explicitly import utils.ps1 with full path
-    $utilsPath = Join-Path $PSScriptRoot "modules\utils.ps1"
-    if (-not (Test-Path $utilsPath)) {
-        throw "Critical error: utils.ps1 not found at $utilsPath"
-    }
-    . $utilsPath  # Dot-source the utils module
+# Load modules
+. "$PSScriptRoot\modules\Create-NewUser.ps1"
+. "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1"
+. "$PSScriptRoot\modules\Add-UserGroups.ps1"
+. "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
+. "$PSScriptRoot\modules\utils.ps1"
 
-    Write-Host "✅ Successfully loaded utils.ps1"
-}
-catch {
-    Write-Error "❌ Failed to load utils.ps1: $($_.Exception.Message)"
-    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode = [HttpStatusCode]::InternalServerError
-        Body = @{
-            status = "failed"
-            error = "Module loading failed"
-            details = @{
-                module = "utils.ps1"
-                error = $_.Exception.Message
-                path = $utilsPath
-            }
-        } | ConvertTo-Json
-    })
-    return
-}
 
 # Initialize execution state tracking
 $ExecutionState = @{
