@@ -3,6 +3,34 @@ using namespace System.Net
 # REQUIRED: Azure Functions parameter declaration
 param($Request, $TriggerMetadata)
 
+# ====== MODULE LOADING ======
+try {
+    # Explicitly import utils.ps1 with full path
+    $utilsPath = Join-Path $PSScriptRoot "modules\utils.ps1"
+    if (-not (Test-Path $utilsPath)) {
+        throw "Critical error: utils.ps1 not found at $utilsPath"
+    }
+    . $utilsPath  # Dot-source the utils module
+
+    Write-Host "✅ Successfully loaded utils.ps1"
+}
+catch {
+    Write-Error "❌ Failed to load utils.ps1: $($_.Exception.Message)"
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::InternalServerError
+        Body = @{
+            status = "failed"
+            error = "Module loading failed"
+            details = @{
+                module = "utils.ps1"
+                error = $_.Exception.Message
+                path = $utilsPath
+            }
+        } | ConvertTo-Json
+    })
+    return
+}
+
 # Initialize execution state tracking
 $ExecutionState = @{
     CurrentStep = "initialization"
@@ -16,67 +44,6 @@ $ExecutionState = @{
     )
 }
 
-# === LOAD MODULES ===
-try {
-    Write-Log "Loading modules..."
-    $moduleRoot = "$PSScriptRoot\modules"
-    
-    # Load utils first
-    $utilsPath = "$moduleRoot\utils.ps1"
-    if (-not (Test-Path $utilsPath)) {
-        throw "Utils.ps1 not found at $utilsPath"
-    }
-    . $utilsPath
-    
-    # Verify all required modules exist
-    $requiredModules = @(
-        'Get-MirroredUserGroupMemberships.ps1',
-        'Invoke-CreateNewUser.ps1',
-        'Add-UserGroups.ps1',
-        'Format-TicketNote.ps1',
-        'Update-ConnectWiseTicketNote.ps1'
-    )
-    
-    foreach ($module in $requiredModules) {
-        $modulePath = "$moduleRoot\$module"
-        if (-not (Test-Path $modulePath)) {
-            throw "Required module $module not found at $modulePath"
-        }
-    }
-}
-catch {
-    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
-    
-    # Ensure metadata is properly initialized
-    Initialize-Metadata -Json $JsonObject
-    
-    # Safely add error to metadata
-    $JsonObject.metadata.errors += $errorMsg
-    
-    # Update step status
-    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
-        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
-    }
-    
-    Write-Host $errorMsg -ForegroundColor Red
-    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
-    
-    return @{
-        status   = "failed"
-        error    = $errorMsg
-        message  = "Processing stopped due to errors"
-        metadata = $JsonObject.metadata
-        debug    = @{
-            timestamp    = [DateTime]::UtcNow.ToString('o')
-            currentStep  = $ExecutionState.CurrentStep
-            errorDetails = $_.Exception | Select-Object *
-        }
-    } | ConvertTo-Json -Depth 5
-}
-
-# Ensure metadata exists before any processing
-Initialize-Metadata -Json $JsonObject
-
 # Enable strict error handling
 $ErrorActionPreference = 'Stop'
 $DebugPreference = 'Continue'
@@ -84,138 +51,52 @@ $VerbosePreference = 'Continue'
 $InformationPreference = 'Continue'
 
 # === INITIALIZATION ===
-if (-not $JsonObject.metadata) {
-    Initialize-Metadata -Json $JsonObject
-}
-else {
-    # Ensure legacy format compatibility
-    if (-not $JsonObject.metadata.PSObject.Properties['status']) {
-        $JsonObject.metadata | Add-Member -NotePropertyName 'status' -NotePropertyValue @{}
-    }
-}
-
-$global:FunctionStartTime = [DateTime]::UtcNow
-$AllOutputs = @{
-    Timestamp = $global:FunctionStartTime.ToString('o')
-    Steps     = @{}
-    Errors    = @()
-}
-
-function Write-Log {
-    param($Message, $Level = 'Information')
-    $timestamp = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
-    Write-Host "[$timestamp][$Level] $Message"
-}
-
-# === STEP 0: PROCESS INPUT ===
 try {
-    Write-Host "🔍 Running JSON validation..."
-    $validationResult = Test-NewUserJson -Data $JsonObject
+    # Parse JSON input
+    $JsonObject = $Request.Body | ConvertFrom-Json -Depth 10
     
-    if (-not $validationResult.IsValid) {
-        throw "Validation failed: $($validationResult.Errors -join ', ')"
-    }
-    
-    $AllOutputs["Validation"] = @{
-        Status = if ($validationResult.Warnings) {"completed_with_warnings"} else {"success"}
-        Errors = $validationResult.Errors
-        Warnings = $validationResult.Warnings
-    }
-    
-    if ($validationResult.Warnings) {
-        Write-Warning "Validation completed with warnings: $($validationResult.Warnings -join ', ')"
-    }
-}
-catch {
-    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
-    
-    # Ensure metadata is properly initialized
+    # Initialize metadata first
     Initialize-Metadata -Json $JsonObject
     
-    # Safely add error to metadata
-    $JsonObject.metadata.errors += $errorMsg
-    
-    # Update step status
-    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
-        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
+    $global:FunctionStartTime = [DateTime]::UtcNow
+    $AllOutputs = @{
+        Timestamp = $global:FunctionStartTime.ToString('o')
+        Steps     = @{}
+        Errors    = @()
     }
-    
-    Write-Host $errorMsg -ForegroundColor Red
-    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
-    
-    return @{
-        status   = "failed"
-        error    = $errorMsg
-        message  = "Processing stopped due to errors"
-        metadata = $JsonObject.metadata
-        debug    = @{
-            timestamp    = [DateTime]::UtcNow.ToString('o')
-            currentStep  = $ExecutionState.CurrentStep
-            errorDetails = $_.Exception | Select-Object *
-        }
-    } | ConvertTo-Json -Depth 5
-}
-# === MAIN EXECUTION FLOW ===
-try {
-    # Initialize metadata
-    Initialize-Metadata -Json $JsonObject
 
+    function Write-Log {
+        param($Message, $Level = 'Information')
+        $timestamp = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+        Write-Host "[$timestamp][$Level] $Message"
+    }
+
+    # === MAIN EXECUTION FLOW ===
     # STEP 1: JSON Validation
-try {
-    Write-Log "🔍 Running JSON validation..."
-    
-    # Run validation with non-strict mode (groups are optional)
-    $validationResult = Test-NewUserJson -Data $JsonObject -StrictValidation:$false
+    try {
+        Write-Log "🔍 Running JSON validation..."
+        
+        # Run validation with non-strict mode
+        $validationResult = Test-NewUserJson -Data $JsonObject -StrictValidation:$false
 
-    if (-not $validationResult.Valid) {
-        $errorMsg = "❌ JSON validation failed: $($validationResult.Message)`n" +
-                    ($validationResult.Errors -join "`n")
+        if (-not $validationResult.Valid) {
+            throw "Validation failed: $($validationResult.Message)"
+        }
+
+        $AllOutputs.Steps["Validation"] = $validationResult
+        $JsonObject.metadata.status.validation = if ($validationResult.Warnings) {"completed_with_warnings"} else {"successful"}
+
+        if ($validationResult.Warnings) {
+            $JsonObject.metadata.warnings += $validationResult.Warnings
+        }
+        Write-Log "✅ Validation passed with $($validationResult.Warnings.Count) warnings"
+    }
+    catch {
+        $errorMsg = "❌ Validation error: $($_.Exception.Message)"
+        $JsonObject.metadata.errors += $errorMsg
+        $JsonObject.metadata.status.validation = "failed"
         throw $errorMsg
     }
-
-    $AllOutputs.Steps["Validation"] = $validationResult
-    $JsonObject.metadata.status.validation = if ($validationResult.Warnings.Count -gt 0) {
-        "completed_with_warnings"
-    } else {
-        "successful"
-    }
-
-    # Add warnings to metadata if any
-    if ($validationResult.Warnings.Count -gt 0) {
-        $JsonObject.metadata.warnings = @($JsonObject.metadata.warnings) + $validationResult.Warnings
-    }
-
-    Write-Log "✅ Validation passed with $($validationResult.Warnings.Count) warnings"
-}
-catch {
-    $errorMsg = "❌ Error in step '$($ExecutionState.CurrentStep)': $($_.Exception.Message)"
-    
-    # Ensure metadata is properly initialized
-    Initialize-Metadata -Json $JsonObject
-    
-    # Safely add error to metadata
-    $JsonObject.metadata.errors += $errorMsg
-    
-    # Update step status
-    if ($JsonObject.metadata.status.PSObject.Properties[$ExecutionState.CurrentStep]) {
-        $JsonObject.metadata.status.$($ExecutionState.CurrentStep) = "failed"
-    }
-    
-    Write-Host $errorMsg -ForegroundColor Red
-    Write-Host "Error details: $($_.Exception | Out-String)" -ForegroundColor DarkRed
-    
-    return @{
-        status   = "failed"
-        error    = $errorMsg
-        message  = "Processing stopped due to errors"
-        metadata = $JsonObject.metadata
-        debug    = @{
-            timestamp    = [DateTime]::UtcNow.ToString('o')
-            currentStep  = $ExecutionState.CurrentStep
-            errorDetails = $_.Exception | Select-Object *
-        }
-    } | ConvertTo-Json -Depth 5
-}
 
     # STEP 2: Group Mirroring
     if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail) {
@@ -411,4 +292,26 @@ catch {
             errorDetails = $_.Exception | Select-Object *
         }
     } | ConvertTo-Json -Depth 5
+}
+    # Final success response
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::OK
+        Body = @{
+            status = "success"
+            message = "User onboarding completed"
+            metadata = $JsonObject.metadata
+        } | ConvertTo-Json
+    })
+}
+catch {
+    Write-Error "Processing failed: $($_.Exception.Message)"
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::BadRequest
+        Body = @{
+            status = "failed"
+            error = $_.Exception.Message
+            stackTrace = $_.ScriptStackTrace
+            metadata = if ($JsonObject.metadata) { $JsonObject.metadata } else { $null }
+        } | ConvertTo-Json
+    })
 }
