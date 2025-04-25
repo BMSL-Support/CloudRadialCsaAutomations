@@ -79,8 +79,6 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
     }
 }
 
-Write-Host "🧪 After Group Mirroring: $($JsonObject | ConvertTo-Json -Depth 10)"
-
 # === STEP 4: Create User ===
 $userCreationFailed = $false
 try {
@@ -106,8 +104,6 @@ catch {
     $userCreationFailed = $true
     $JsonObject.metadata.status.userCreation = "failed"
 }
-
-Write-Host "🧪 After User Creation: $($JsonObject | ConvertTo-Json -Depth 10)"
 
 # === STEP 5: Add to Groups ===
 if (-not $userCreationFailed) {
@@ -146,8 +142,6 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
     }
 }
 
-Write-Host "🧪 After Licensing: $($JsonObject | ConvertTo-Json -Depth 10)"
-
 # === STEP 7: Format Final Ticket Note ===
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
@@ -165,8 +159,6 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
-
-Write-Host "🧪 Ticket Note for Ticket ${TicketId}: $($ticketNote | ConvertTo-Json -Depth 10)"
 
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
