@@ -16,39 +16,6 @@ $ExecutionState = @{
     )
 }
 
-# Ensure metadata exists before any processing
-Initialize-Metadata -Json $JsonObject
-
-# Enable strict error handling
-$ErrorActionPreference = 'Stop'
-$DebugPreference = 'Continue'
-$VerbosePreference = 'Continue'
-$InformationPreference = 'Continue'
-
-# === INITIALIZATION ===
-if (-not $JsonObject.metadata) {
-    Initialize-Metadata -Json $JsonObject
-}
-else {
-    # Ensure legacy format compatibility
-    if (-not $JsonObject.metadata.PSObject.Properties['status']) {
-        $JsonObject.metadata | Add-Member -NotePropertyName 'status' -NotePropertyValue @{}
-    }
-}
-
-$global:FunctionStartTime = [DateTime]::UtcNow
-$AllOutputs = @{
-    Timestamp = $global:FunctionStartTime.ToString('o')
-    Steps     = @{}
-    Errors    = @()
-}
-
-function Write-Log {
-    param($Message, $Level = 'Information')
-    $timestamp = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
-    Write-Host "[$timestamp][$Level] $Message"
-}
-
 # === LOAD MODULES ===
 try {
     Write-Log "Loading modules..."
@@ -106,6 +73,40 @@ catch {
         }
     } | ConvertTo-Json -Depth 5
 }
+
+# Ensure metadata exists before any processing
+Initialize-Metadata -Json $JsonObject
+
+# Enable strict error handling
+$ErrorActionPreference = 'Stop'
+$DebugPreference = 'Continue'
+$VerbosePreference = 'Continue'
+$InformationPreference = 'Continue'
+
+# === INITIALIZATION ===
+if (-not $JsonObject.metadata) {
+    Initialize-Metadata -Json $JsonObject
+}
+else {
+    # Ensure legacy format compatibility
+    if (-not $JsonObject.metadata.PSObject.Properties['status']) {
+        $JsonObject.metadata | Add-Member -NotePropertyName 'status' -NotePropertyValue @{}
+    }
+}
+
+$global:FunctionStartTime = [DateTime]::UtcNow
+$AllOutputs = @{
+    Timestamp = $global:FunctionStartTime.ToString('o')
+    Steps     = @{}
+    Errors    = @()
+}
+
+function Write-Log {
+    param($Message, $Level = 'Information')
+    $timestamp = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+    Write-Host "[$timestamp][$Level] $Message"
+}
+
 # === STEP 0: PROCESS INPUT ===
 try {
     Write-Host "🔍 Running JSON validation..."
