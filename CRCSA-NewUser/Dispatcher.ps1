@@ -63,18 +63,8 @@ catch {
         StatusCode = [HttpStatusCode]::OK
         Body = @{status="success";metadata=$JsonObject.metadata}
     })
-
-catch {
-    Write-Error "Processing failed: $($_.Exception.Message)"
-    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode = [HttpStatusCode]::BadRequest
-        Body = @{
-            status = "failed"
-            error = $_.Exception.Message
-            metadata = if ($JsonObject.metadata) { $JsonObject.metadata } else { $null }
-        }
-    })
-}
+    Write-Host "✅ JSON cleaned and parsed successfully."
+    Write-Host "📝 Metadata initialized successfully."
     # === MAIN EXECUTION FLOW ===
     # STEP 1: JSON Validation
     try {
