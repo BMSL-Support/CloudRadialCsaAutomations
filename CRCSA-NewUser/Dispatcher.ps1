@@ -80,7 +80,6 @@ if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.Mi
 }
 
 # === STEP 4: Create User ===
-$userCreationFailed = $false
 try {
     Write-Host "👤 Creating user..."
     $userCreationOutput = & "$PSScriptRoot\modules\Invoke-CreateNewUser.ps1" -Json $JsonObject
