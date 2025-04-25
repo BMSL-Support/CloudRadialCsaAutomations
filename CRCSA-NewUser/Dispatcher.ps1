@@ -270,6 +270,16 @@ catch {
             ticketNote = $ticketNote
         } | ConvertTo-Json -Depth 5
     }
+# Final success response
+Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+    StatusCode = [HttpStatusCode]::OK
+    Body = @{
+        status = "success"
+        message = "User onboarding completed"
+        metadata = $JsonObject.metadata
+    } | ConvertTo-Json
+})
+
 catch {
     Write-Host "❌ Exception during dispatch: $_"
 
