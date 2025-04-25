@@ -1,15 +1,13 @@
 using namespace System.Net
 
+# REQUIRED: Azure Functions parameter declaration
+param($Request, $TriggerMetadata)
+
 # Enable strict error handling
 $ErrorActionPreference = 'Stop'
 $DebugPreference = 'Continue'
 $VerbosePreference = 'Continue'
 $InformationPreference = 'Continue'
-
-param (
-    [Parameter(Mandatory = $true)]
-    [object]$Request
-)
 
 # === INITIALIZATION ===
 $global:FunctionStartTime = [DateTime]::UtcNow
