@@ -268,7 +268,7 @@ catch {
             errorDetails = $_.Exception | Select-Object *
         }
     } | ConvertTo-Json -Depth 5
-}
+
     # Final success response
     Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = [HttpStatusCode]::OK
