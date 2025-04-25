@@ -28,7 +28,6 @@ $VerbosePreference = 'Continue'
 $InformationPreference = 'Continue'
 
 # === INITIALIZATION ===
-# === INITIALIZATION ===
 $ErrorActionPreference = 'Stop'
 $DebugPreference = 'Continue'
 $global:FunctionStartTime = [DateTime]::UtcNow
@@ -271,7 +270,6 @@ catch {
             ticketNote = $ticketNote
         } | ConvertTo-Json -Depth 5
     }
-}
 catch {
     Write-Host "❌ Exception during dispatch: $_"
 
