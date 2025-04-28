@@ -105,7 +105,7 @@ catch {
 }
 Write-Host "📤 CreateUser module output: $($userCreationOutput | ConvertTo-Json -Depth 5)"
 # === STEP 5: Add to Groups ===
-if (-not $JsonObject.metadata.status.userCreation = "failed") {
+if (-not ($JsonObject.metadata.status.userCreation -eq "failed")) {
     try {
         Write-Host "👥 Adding user to groups..."
         $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
