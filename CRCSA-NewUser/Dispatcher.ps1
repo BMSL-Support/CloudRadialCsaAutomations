@@ -121,7 +121,7 @@ if (-not $userCreationFailed) {
         $JsonObject.metadata.status.groupAssignment = "failed"
     }
 }
-
+Write-Host "📤 GroupAssignment module output: $($groupAssignmentOutput | ConvertTo-Json -Depth 5)"
 # === STEP 6: Licensing (optional) ===
 $licenseModule = "$PSScriptRoot\modules\Assign-License.ps1"
 if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
@@ -158,7 +158,7 @@ catch {
         errors  = $JsonObject.metadata.errors
     } | ConvertTo-Json -Depth 10
 }
-
+Write-Host "📤 Final Ticket Note module output: $($ticketNoteObject | ConvertTo-Json -Depth 5)"
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
