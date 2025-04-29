@@ -144,7 +144,12 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
 # === STEP 7: Format Final Ticket Note ===
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
-    $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -Json $JsonObject -ModuleOutputs $AllOutputs
+    $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -AllOutputs $AllOutputs
+    if (-not $ticketNoteObject) {
+    Write-Host "❌ Format-TicketNote returned null. Check inputs."
+} elseif (-not $ticketNoteObject.TicketId) {
+    Write-Host "⚠️ TicketId is null or empty in returned object."
+}
     $TicketId = $ticketNoteObject.TicketId
     $ticketNote = $ticketNoteObject.Message
     Write-Host "✅ Ticket note formatted."
