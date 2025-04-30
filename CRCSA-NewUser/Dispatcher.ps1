@@ -111,8 +111,30 @@ if (-not ($JsonObject.metadata.status.userCreation -eq "failed")) {
         $groupAssignmentOutput = & "$PSScriptRoot\modules\Add-UserGroups.ps1" -Json $JsonObject
         $AllOutputs["Groups"] = $groupAssignmentOutput
 
-        # Update metadata status after group assignment
-        $JsonObject.metadata.status.groupAssignment = "successful"
+        # Propagate returned groupAssignment status
+        if ($groupAssignmentOutput.metadata.status.groupAssignment) {
+            $JsonObject.metadata.status.groupAssignment = $groupAssignmentOutput.metadata.status.groupAssignment
+        } else {
+            $JsonObject.metadata.status.groupAssignment = "unknown"
+        }
+
+        # Merge any returned errors
+        if ($groupAssignmentOutput.metadata.errors) {
+            $JsonObject.metadata.errors += $groupAssignmentOutput.metadata.errors
+        }
+
+        # Optionally, mirror manualFallback and mirroredFrom for Format-TicketNote compatibility
+        if ($groupAssignmentOutput.metadata.manualFallback) {
+            $JsonObject.metadata.manualFallback = $groupAssignmentOutput.metadata.manualFallback
+        }
+        if ($groupAssignmentOutput.metadata.mirroredFrom) {
+            $JsonObject.metadata.mirroredFrom = $groupAssignmentOutput.metadata.mirroredFrom
+        }
+
+        # If GroupsAssigned returned, append to root Json for consistency
+        if ($groupAssignmentOutput.GroupsAssigned) {
+            $JsonObject.GroupsAssigned = $groupAssignmentOutput.GroupsAssigned
+        }
     }
     catch {
         $errorMsg = "❌ Exception during group assignment: $($_.Exception.Message)"
@@ -121,7 +143,9 @@ if (-not ($JsonObject.metadata.status.userCreation -eq "failed")) {
         $JsonObject.metadata.status.groupAssignment = "failed"
     }
 }
+
 Write-Host "📤 GroupAssignment module output: $($groupAssignmentOutput | ConvertTo-Json -Depth 5)"
+
 # === STEP 6: Licensing (optional) ===
 $licenseModule = "$PSScriptRoot\modules\Assign-License.ps1"
 if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
