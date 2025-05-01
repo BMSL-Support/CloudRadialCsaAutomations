@@ -186,6 +186,16 @@ try {
     $ticketNote = $ticketNoteObject.Message
     Write-Host "✅ Ticket note formatted for TicketId: $TicketId"
 }
+catch {
+    $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
+    Write-Host $errorMsg
+    return @{
+        error   = $_.Exception.Message
+        message = "Dispatcher failed during final formatting"
+        errors  = $JsonObject.metadata.errors
+    } | ConvertTo-Json -Depth 10
+}
+
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
