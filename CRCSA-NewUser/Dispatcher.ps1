@@ -169,25 +169,23 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -AllOutputs $AllOutputs
-    if (-not $ticketNoteObject) {
-    Write-Host "❌ Format-TicketNote returned null. Check inputs."
-} elseif (-not $ticketNoteObject.TicketId) {
-    Write-Host "⚠️ TicketId is null or empty in returned object."
-}
+    
+    # Validate the output structure
+    if (-not $ticketNoteObject -or -not $ticketNoteObject.TicketId) {
+        $ticketId = $JsonObject.TicketId ?? $JsonObject.metadata.ticket.id
+        if (-not $ticketId) {
+            throw "Could not determine TicketId from any source"
+        }
+        $ticketNoteObject = @{
+            TicketId = $ticketId
+            Message = $ticketNoteObject ?? "No note content generated"
+        }
+    }
+    
     $TicketId = $ticketNoteObject.TicketId
     $ticketNote = $ticketNoteObject.Message
-    Write-Host "✅ Ticket note formatted."
+    Write-Host "✅ Ticket note formatted for TicketId: $TicketId"
 }
-catch {
-    $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
-    Write-Host $errorMsg
-    return @{
-        error   = $_.Exception.Message
-        message = "Dispatcher failed during final formatting"
-        errors  = $JsonObject.metadata.errors
-    } | ConvertTo-Json -Depth 10
-}
-Write-Host "📤 Final Ticket Note module output: $($ticketNoteObject | ConvertTo-Json -Depth 5)"
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
