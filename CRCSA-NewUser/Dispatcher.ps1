@@ -219,13 +219,14 @@ try {
         Write-Information $ticketNoteResult.Message
     }
 
-    return @{
-        result       = $ticketNoteResult.Status
-        message      = $ticketNote
-        noteStatus   = $ticketNoteResult.Status
-        noteMessage  = $ticketNoteResult.Message
-        errors       = $JsonObject.metadata.errors
-    } | ConvertTo-Json -Depth 10
+return @{
+    result       = $ticketNoteResult.Status
+    message      = $ticketNote
+    noteStatus   = $ticketNoteResult.Status
+    noteMessage  = $ticketNoteResult.Message
+    errors       = $JsonObject.metadata.errors
+    ticketId     = $TicketId  # Add this line for debugging
+} | ConvertTo-Json -Depth 10
 }
 catch {
     $errorMsg = "❌ Exception while adding ConnectWise note: $($_.Exception.Message)"
