@@ -169,10 +169,9 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     
-    # Verify we have the CreateUser output
-    if (-not $AllOutputs[-1].CreateUser) {
-        throw "Missing CreateUser data in pipeline"
-    }
+    # Debug: Show the full outputs structure
+    Write-Host "=== ALL OUTPUTS STRUCTURE ==="
+    Write-Host ($AllOutputs | ConvertTo-Json -Depth 5)
 
     $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -AllOutputs $AllOutputs
     
@@ -184,7 +183,11 @@ try {
     $TicketId = if ($ticketNoteObject.TicketId) { 
         $ticketNoteObject.TicketId 
     } else { 
-        $AllOutputs[-1].CreateUser.TicketId ?? $AllOutputs[-1].CreateUser.metadata.ticket.id 
+        # Fallback to finding ticket ID in any output
+        $AllOutputs | ForEach-Object {
+            if ($_.TicketId) { $_.TicketId }
+            elseif ($_.metadata.ticket.id) { $_.metadata.ticket.id }
+        } | Select-Object -First 1
     }
 
     if (-not $TicketId) {
