@@ -172,7 +172,7 @@ try {
     
     # Validate the output structure
     if (-not $ticketNoteObject -or -not $ticketNoteObject.TicketId) {
-        $ticketId = $JsonObject.TicketId ?? $JsonObject.metadata.ticket.id
+        $ticketId = if ($JsonObject.TicketId) { $JsonObject.TicketId } else { $JsonObject.metadata.ticket.id }
         if (-not $ticketId) {
             throw "Could not determine TicketId from any source"
         }
@@ -183,8 +183,14 @@ try {
     }
     
     $TicketId = $ticketNoteObject.TicketId
-    $ticketNote = $ticketNoteObject.Message | Out-String
+    # Remove Out-String to prevent table formatting
+    $ticketNote = $ticketNoteObject.Message
     Write-Host "✅ Ticket note formatted for TicketId: $TicketId"
+    
+    # Debug output to verify the note content
+    Write-Host "📄 Ticket Note Content Preview:"
+    Write-Host $ticketNote
+    Write-Host "📄 End of Preview"
 }
 catch {
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
@@ -201,7 +207,13 @@ try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
 
     . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
-    $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message $ticketNote
+    
+    # Ensure we're passing a clean string without PowerShell formatting
+    $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message ($ticketNote.Trim())
+    
+    # Debug output
+    Write-Host "🔍 ConnectWise API Response:"
+    Write-Host ($ticketNoteResult | ConvertTo-Json -Depth 5)
 
     if ($ticketNoteResult.Status -ne "Success") {
         Write-Warning "⚠️ ConnectWise ticket note failed to add"
@@ -219,21 +231,19 @@ try {
         Write-Information $ticketNoteResult.Message
     }
 
-return @{
-    result       = $ticketNoteResult.Status
-    message      = $ticketNote
-    noteStatus   = $ticketNoteResult.Status
-    noteMessage  = $ticketNoteResult.Message
-    errors       = $JsonObject.metadata.errors
-    ticketId     = $TicketId  # Add this line for debugging
-} | ConvertTo-Json -Depth 10
+    # Return minimal response to avoid formatting issues
+    return @{
+        status = "completed"
+        ticketId = $TicketId
+        noteAdded = ($ticketNoteResult.Status -eq "Success")
+    } | ConvertTo-Json
 }
 catch {
     $errorMsg = "❌ Exception while adding ConnectWise note: $($_.Exception.Message)"
     Write-Host $errorMsg
     return @{
-        error   = $_.Exception.Message
-        message = "Dispatcher failed during ConnectWise note creation"
-        errors  = $JsonObject.metadata.errors
-    } | ConvertTo-Json -Depth 10
+        status = "failed"
+        error = $_.Exception.Message
+        ticketId = $TicketId
+    } | ConvertTo-Json
 }
