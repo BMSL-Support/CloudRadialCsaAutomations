@@ -169,11 +169,11 @@ if ((-not $userCreationFailed) -and (Test-Path $licenseModule)) {
 try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     
-    # Verify data exists
-    if (-not $AllOutputs[-1].AccountDetails.UserPrincipalName) {
-        Write-Warning "Missing UserPrincipalName in input data"
+    # Verify we have the CreateUser output
+    if (-not $AllOutputs[-1].CreateUser) {
+        throw "Missing CreateUser data in pipeline"
     }
-    
+
     $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -AllOutputs $AllOutputs
     
     # Validate output
@@ -181,10 +181,19 @@ try {
         throw "Formatted note content is empty"
     }
 
-    $TicketId = $ticketNoteObject.TicketId
+    $TicketId = if ($ticketNoteObject.TicketId) { 
+        $ticketNoteObject.TicketId 
+    } else { 
+        $AllOutputs[-1].CreateUser.TicketId ?? $AllOutputs[-1].CreateUser.metadata.ticket.id 
+    }
+
+    if (-not $TicketId) {
+        throw "Could not determine TicketId from any source"
+    }
+
     $ticketNote = $ticketNoteObject.Message
 
-    Write-Host "✅ Final Note Content Preview:"
+    Write-Host "✅ Final Note Content:"
     Write-Host $ticketNote
 }
 catch {
@@ -196,7 +205,6 @@ catch {
         message = "Dispatcher failed during final formatting"
     } | ConvertTo-Json
 }
-
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
