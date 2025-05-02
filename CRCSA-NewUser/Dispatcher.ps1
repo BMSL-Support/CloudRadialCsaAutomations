@@ -170,33 +170,28 @@ try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -AllOutputs $AllOutputs
     
-    # Validate and extract values safely
+    # Validate output
+    if (-not $ticketNoteObject -or -not $ticketNoteObject.Message) {
+        throw "Formatted note content is missing"
+    }
+
     $TicketId = if ($ticketNoteObject.TicketId) { 
         $ticketNoteObject.TicketId 
-    } elseif ($JsonObject.TicketId) { 
-        $JsonObject.TicketId 
     } else { 
-        $JsonObject.metadata.ticket.id 
+        $JsonObject.TicketId ?? $JsonObject.metadata.ticket.id 
     }
 
     if (-not $TicketId) {
-        throw "Could not determine TicketId from any source"
+        throw "Could not determine TicketId"
     }
 
-    # Ensure we have a string message
-    $ticketNote = if ($ticketNoteObject.Message -is [string]) {
-        $ticketNoteObject.Message
-    } else {
-        $ticketNoteObject.Message | Out-String
-    }
+    # Get the formatted note content
+    $ticketNote = $ticketNoteObject.Message.ToString()
 
     Write-Host "✅ Ticket note formatted for TicketId: $TicketId"
-    Write-Host "📄 Ticket Note Content:"
+    Write-Host "📄 Final Note Content:"
     Write-Host $ticketNote
     Write-Host "📄 End of Content"
-
-    # Pass the clean values to STEP 8
-    $ticketNote = $ticketNote.Trim()
 }
 catch {
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
@@ -214,7 +209,7 @@ try {
     
     . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
     
-    # Ensure we're passing a clean string
+    # Pass the clean note content
     $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message $ticketNote
 
     if ($ticketNoteResult.Status -ne "Success") {
