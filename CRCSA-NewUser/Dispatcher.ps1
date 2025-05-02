@@ -170,80 +170,73 @@ try {
     Write-Host "📝 Formatting ConnectWise ticket note..."
     $ticketNoteObject = & "$PSScriptRoot\modules\Format-TicketNote.ps1" -AllOutputs $AllOutputs
     
-    # Validate the output structure
-    if (-not $ticketNoteObject -or -not $ticketNoteObject.TicketId) {
-        $ticketId = if ($JsonObject.TicketId) { $JsonObject.TicketId } else { $JsonObject.metadata.ticket.id }
-        if (-not $ticketId) {
-            throw "Could not determine TicketId from any source"
-        }
-        $ticketNoteObject = @{
-            TicketId = $ticketId
-            Message = $ticketNoteObject ?? "No note content generated"
-        }
+    # Validate and extract values safely
+    $TicketId = if ($ticketNoteObject.TicketId) { 
+        $ticketNoteObject.TicketId 
+    } elseif ($JsonObject.TicketId) { 
+        $JsonObject.TicketId 
+    } else { 
+        $JsonObject.metadata.ticket.id 
     }
-    
-    $TicketId = $ticketNoteObject.TicketId
-    # Remove Out-String to prevent table formatting
-    $ticketNote = $ticketNoteObject.Message
+
+    if (-not $TicketId) {
+        throw "Could not determine TicketId from any source"
+    }
+
+    # Ensure we have a string message
+    $ticketNote = if ($ticketNoteObject.Message -is [string]) {
+        $ticketNoteObject.Message
+    } else {
+        $ticketNoteObject.Message | Out-String
+    }
+
     Write-Host "✅ Ticket note formatted for TicketId: $TicketId"
-    
-    # Debug output to verify the note content
-    Write-Host "📄 Ticket Note Content Preview:"
+    Write-Host "📄 Ticket Note Content:"
     Write-Host $ticketNote
-    Write-Host "📄 End of Preview"
+    Write-Host "📄 End of Content"
+
+    # Pass the clean values to STEP 8
+    $ticketNote = $ticketNote.Trim()
 }
 catch {
     $errorMsg = "❌ Exception formatting ticket note: $($_.Exception.Message)"
     Write-Host $errorMsg
     return @{
+        status  = "failed"
         error   = $_.Exception.Message
         message = "Dispatcher failed during final formatting"
-        errors  = $JsonObject.metadata.errors
-    } | ConvertTo-Json -Depth 10
+    } | ConvertTo-Json
 }
 
 # === STEP 8: Create ConnectWise Ticket Note ===
 try {
     Write-Host "📬 Adding note to ConnectWise ticket $TicketId..."
-
+    
     . "$PSScriptRoot\modules\Update-ConnectWiseTicketNote.ps1"
     
-    # Ensure we're passing a clean string without PowerShell formatting
-    $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message ($ticketNote.Trim())
-    
-    # Debug output
-    Write-Host "🔍 ConnectWise API Response:"
-    Write-Host ($ticketNoteResult | ConvertTo-Json -Depth 5)
+    # Ensure we're passing a clean string
+    $ticketNoteResult = Update-ConnectWiseTicketNote -TicketId $TicketId -Message $ticketNote
 
     if ($ticketNoteResult.Status -ne "Success") {
-        Write-Warning "⚠️ ConnectWise ticket note failed to add"
-        Write-Warning "Message: $($ticketNoteResult.Message)"
-
+        Write-Warning "⚠️ ConnectWise ticket note failed to add: $($ticketNoteResult.Message)"
         if ($ticketNoteResult.Error) {
-            Write-Error "Error: $($ticketNoteResult.Error)"
-        }
-
-        if ($ticketNoteResult.Stack) {
-            Write-Verbose "Stack Trace: $($ticketNoteResult.Stack)"
+            Write-Error "Details: $($ticketNoteResult.Error)"
         }
     }
-    else {
-        Write-Information $ticketNoteResult.Message
-    }
 
-    # Return minimal response to avoid formatting issues
     return @{
-        status = "completed"
-        ticketId = $TicketId
-        noteAdded = ($ticketNoteResult.Status -eq "Success")
+        status     = "completed"
+        ticketId   = $TicketId
+        noteStatus = $ticketNoteResult.Status
+        success    = ($ticketNoteResult.Status -eq "Success")
     } | ConvertTo-Json
 }
 catch {
     $errorMsg = "❌ Exception while adding ConnectWise note: $($_.Exception.Message)"
     Write-Host $errorMsg
     return @{
-        status = "failed"
-        error = $_.Exception.Message
-        ticketId = $TicketId
+        status    = "failed"
+        error     = $_.Exception.Message
+        ticketId  = $TicketId
     } | ConvertTo-Json
 }
