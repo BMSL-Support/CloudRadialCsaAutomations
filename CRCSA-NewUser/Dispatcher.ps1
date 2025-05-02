@@ -183,7 +183,7 @@ try {
     }
     
     $TicketId = $ticketNoteObject.TicketId
-    $ticketNote = $ticketNoteObject.Message
+    $ticketNote = $ticketNoteObject.Message | Out-String
     Write-Host "✅ Ticket note formatted for TicketId: $TicketId"
 }
 catch {
