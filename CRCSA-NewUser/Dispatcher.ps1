@@ -57,7 +57,8 @@ catch {
 }
 
 # === STEP 3: Group Mirroring ===
-if ($JsonObject.Groups.MirroredUsers.MirroredUserEmail -or $JsonObject.Groups.MirroredUsers.MirroredUserGroups) {
+if (($JsonObject.Groups.MirroredUsers.MirroredUserEmail -and $JsonObject.Groups.MirroredUsers.MirroredUserEmail.Trim()) -or 
+    ($JsonObject.Groups.MirroredUsers.MirroredUserGroups -and $JsonObject.Groups.MirroredUsers.MirroredUserGroups.Trim())) {
     try {
         Write-Host "➡ Fetching mirrored group memberships..."
         & "$PSScriptRoot\modules\Get-MirroredUserGroupMemberships.ps1" -Json $JsonObject
