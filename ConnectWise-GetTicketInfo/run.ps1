@@ -1,21 +1,28 @@
 <# 
 .SYNOPSIS
-    Retrieves ConnectWise tickets with notes and resolution details.
+    Retrieves ConnectWise tickets with filters, notes, and resolution details.
 
 .DESCRIPTION
-    This function queries ConnectWise for tickets and includes their notes and resolution info.
+    This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
 
 .INPUTS
     JSON Structure:
     {
+        "TicketId": "123456",
         "SummaryContains": "printer",
         "Status": "New",
+        "Priority": "High",
+        "Company": "Contoso Ltd",
+        "Contact": "John Doe",
+        "Board": "Service Desk",
+        "ConfigItem": "Printer-01",
         "CreatedAfter": "2024-01-01",
+        "CreatedBefore": "2024-12-31",
         "SecurityKey": "optional"
     }
 
 .OUTPUTS
-    JSON array of tickets with notes and resolution details
+    JSON array of enriched tickets
 #>
 
 using namespace System.Net
@@ -35,8 +42,14 @@ $Connection = @{
 Connect-CWM @Connection
 
 # Extract filters
+$TicketId       = $Request.Body.TicketId
 $Summary        = $Request.Body.SummaryContains
 $Status         = $Request.Body.Status
+$Priority       = $Request.Body.Priority
+$Company        = $Request.Body.Company
+$Contact        = $Request.Body.Contact
+$Board          = $Request.Body.Board
+$ConfigItem     = $Request.Body.ConfigItem
 $CreatedAfter   = $Request.Body.CreatedAfter
 $CreatedBefore  = $Request.Body.CreatedBefore
 $SecurityKey    = $env:SecurityKey
@@ -48,8 +61,14 @@ if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
 
 # Build query conditions
 $conditions = @()
+if ($TicketId)      { $conditions += "id=$TicketId" }
 if ($Summary)       { $conditions += "summary contains '$Summary'" }
 if ($Status)        { $conditions += "status/name='$Status'" }
+if ($Priority)      { $conditions += "priority/name='$Priority'" }
+if ($Company)       { $conditions += "company/name='$Company'" }
+if ($Contact)       { $conditions += "contact/name='$Contact'" }
+if ($Board)         { $conditions += "board/name='$Board'" }
+if ($ConfigItem)    { $conditions += "configurationItems/identifier='$ConfigItem'" }
 if ($CreatedAfter)  { $conditions += "dateEntered>[$CreatedAfter]" }
 if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
 
@@ -63,7 +82,8 @@ $enrichedTickets = @()
 foreach ($ticket in $tickets) {
     $ticketId = $ticket.id
     $notes = Get-CWMTicketNotes -ticketId $ticketId
-    # Try to extract resolution from notes or description
+
+    # Try to extract resolution from notes or ticket field
     $resolutionNote = $notes | Where-Object { $_.internalAnalysisFlag -eq $true -or $_.resolutionFlag -eq $true } | Select-Object -First 1
     $resolutionText = if ($resolutionNote) { $resolutionNote.text } else { $ticket.resolution }
 
@@ -73,6 +93,8 @@ foreach ($ticket in $tickets) {
         status      = $ticket.status.name
         priority    = $ticket.priority.name
         company     = $ticket.company.name
+        contact     = $ticket.contact.name
+        board       = $ticket.board.name
         dateEntered = $ticket.dateEntered
         notes       = $notes
         resolution  = $resolutionText
