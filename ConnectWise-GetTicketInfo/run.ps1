@@ -65,7 +65,7 @@ if ($TicketId)      { $conditions += "id=$TicketId" }
 if ($Summary)       { $conditions += "summary contains '$Summary'" }
 if ($Status)        { $conditions += "status/name='$Status'" }
 if ($Priority)      { $conditions += "priority/name='$Priority'" }
-if ($Company)       { $conditions += "company/name='$Company'" }
+if ($Company) { $conditions += "company/name contains '$Company'" }
 if ($Contact)       { $conditions += "contact/name='$Contact'" }
 if ($Board)         { $conditions += "board/name='$Board'" }
 if ($ConfigItem)    { $conditions += "configurationItems/identifier='$ConfigItem'" }
