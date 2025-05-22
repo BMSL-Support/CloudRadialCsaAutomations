@@ -74,15 +74,14 @@ if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
 
 $filter = $conditions -join " and "
 
-# Fetch tickets
-$tickets = Get-CWMTickets -conditions $filter -pageSize 50
+# Fetch tickets using the existing Get-CWMTicket function
+$tickets = Get-CWMTicket -condition $filter -pageSize 50 -all
 
 # Enrich each ticket with notes and resolution
 $enrichedTickets = @()
 foreach ($ticket in $tickets) {
     $ticketId = $ticket.id
-    $notes = Get-CWMTicketNotes -ticketId $ticketId
-
+    $notes = Get-CWMTicketNote -ticketId $ticketId
     # Try to extract resolution from notes or ticket field
     $resolutionNote = $notes | Where-Object { $_.internalAnalysisFlag -eq $true -or $_.resolutionFlag -eq $true } | Select-Object -First 1
     $resolutionText = if ($resolutionNote) { $resolutionNote.text } else { $ticket.resolution }
