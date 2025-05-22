@@ -29,7 +29,7 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-Import-Module "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1"
+. "$PSScriptRoot\Modules\ConnectWiseManageAPI\ConnectWiseManageAPI.psm1"
 
 # Connect to ConnectWise
 $Connection = @{
