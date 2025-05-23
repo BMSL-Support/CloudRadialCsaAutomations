@@ -78,7 +78,10 @@ if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
 $filter = $conditions -join " and "
 
 # Fetch tickets using the existing Get-CWMTicket function
-$tickets = Get-CWMTicket -condition $filter -pageSize 50 -all
+# $tickets = Get-CWMTicket -condition $filter -pageSize 50 -all
+
+$pageSize = if ($Request.Body.MaxResults) { [int]$Request.Body.MaxResults } else { 50 }
+$tickets = Get-CWMTicket -condition $filter -pageSize $pageSize -all:$false
 
 # Enrich and filter tickets
 $enrichedTickets = @()
