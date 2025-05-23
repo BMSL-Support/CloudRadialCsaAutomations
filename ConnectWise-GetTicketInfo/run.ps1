@@ -1,5 +1,5 @@
-
-<# .SYNOPSIS
+<# 
+.SYNOPSIS
     Retrieves ConnectWise tickets with filters, notes, and resolution details.
 
 .DESCRIPTION
@@ -78,8 +78,7 @@ if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
 $filter = $conditions -join " and "
 
 # Fetch tickets using the existing Get-CWMTicket function
-$pageSize = if ($Request.Body.MaxResults) { [int]$Request.Body.MaxResults } else { 50 }
-$tickets = Get-CWMTicket -condition $filter -pageSize $pageSize -all:$false
+$tickets = Get-CWMTicket -condition $filter -pageSize 50 -all
 
 # Enrich and filter tickets
 $enrichedTickets = @()
@@ -91,7 +90,7 @@ foreach ($ticket in $tickets) {
     if ($Keyword) {
         $matchFound = $false
         foreach ($note in $notes) {
-            if ($note.text -like "*$Keyword*" -or $ticket.summary -like "*$Keyword*") {
+            if ($note.text -like "*$Keyword*") {
                 $matchFound = $true
                 break
             }
@@ -119,10 +118,11 @@ foreach ($ticket in $tickets) {
     }
 }
 
-# Return the raw JSON array of enriched tickets
+$body = $enrichedTickets | ConvertTo-Json -Depth 10
+
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
-    Body = ($enrichedTickets | ConvertTo-Json -Depth 10)
+    Body = $body
     ContentType = "application/json"
 })
 
