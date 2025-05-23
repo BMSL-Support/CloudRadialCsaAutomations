@@ -1,30 +1,31 @@
+
 <# 
 .SYNOPSIS
-    Retrieves ConnectWise tickets with filters, notes, and resolution details.
+Retrieves ConnectWise tickets with filters, notes, and resolution details.
 
 .DESCRIPTION
-    This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
-    It also supports post-filtering based on a keyword found in the ticket notes.
+This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
+It also supports post-filtering based on a keyword found in the ticket notes.
 
 .INPUTS
-    JSON Structure:
-    {
-        "TicketId": "123456",
-        "SummaryContains": "printer",
-        "Status": "New",
-        "Priority": "High",
-        "Company": "Fabrikam Ltd",
-        "Contact": "Joe Bloggs",
-        "Board": "Service Desk",
-        "ConfigItem": "Printer-01",
-        "CreatedAfter": "2023-01-01",
-        "CreatedBefore": "2024-12-31",
-        "Keyword": "AI",
-        "SecurityKey": "optional"
-    }
+JSON Structure:
+{
+"TicketId": "123456",
+"SummaryContains": "printer",
+"Status": "New",
+"Priority": "High",
+"Company": "Fabrikam Ltd",
+"Contact": "Joe Bloggs",
+"Board": "Service Desk",
+"ConfigItem": "Printer-01",
+"CreatedAfter": "2023-01-01",
+"CreatedBefore": "2024-12-31",
+"Keyword": "AI",
+"SecurityKey": "optional"
+}
 
 .OUTPUTS
-    JSON array of enriched tickets
+JSON array of enriched tickets
 #>
 
 using namespace System.Net
@@ -58,8 +59,12 @@ $Keyword        = $Request.Body.Keyword
 $SecurityKey    = $env:SecurityKey
 
 if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
-    Write-Host "Invalid security key"
-    break
+    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = [HttpStatusCode]::Unauthorized
+        Body = @{ error = "Invalid security key" }
+        ContentType = "application/json"
+    })
+    return
 }
 
 # Build query conditions
