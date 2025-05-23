@@ -55,8 +55,8 @@ if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
 $Body = $Request.Body
 
 # Apply defaults (last 12 months)
-$CreatedAfter  = $Body.CreatedAfter  ?: (Get-Date).AddMonths(-12).ToString("yyyy-MM-dd")
-$CreatedBefore = $Body.CreatedBefore ?: (Get-Date).ToString("yyyy-MM-dd")
+$CreatedAfter  = if ($Body.CreatedAfter) { $Body.CreatedAfter } else { (Get-Date).AddMonths(-12).ToString("yyyy-MM-dd") }
+$CreatedBefore = if ($Body.CreatedBefore) { $Body.CreatedBefore } else { (Get-Date).ToString("yyyy-MM-dd") }
 
 # Build filter conditions
 $conditions = @()
@@ -72,7 +72,7 @@ $conditions += "dateEntered>[$CreatedAfter]"
 $conditions += "dateEntered<[$CreatedBefore]"
 
 $filter = $conditions -join " and "
-$pageSize = [int]($Body.MaxResults ?: 50)
+$pageSize = if ($Body.MaxResults) { [int]$Body.MaxResults } else { 50 }
 
 # Fetch tickets
 $tickets = Get-CWMTicket -condition $filter -pageSize $pageSize -all:$false
@@ -101,7 +101,7 @@ $enrichedTickets = foreach ($ticket in $tickets) {
             board       = $ticket.board.name
             dateEntered = $ticket.dateEntered
             notes       = $notes
-            resolution  = $resolutionNote?.text ?: $ticket.resolution
+            resolution  = if ($null -ne $resolutionNote -and $null -ne $resolutionNote.text -and $resolutionNote.text -ne "") { $resolutionNote.text } else { $ticket.resolution }
         }
     }
 }
