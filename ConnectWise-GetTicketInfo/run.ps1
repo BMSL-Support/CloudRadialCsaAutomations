@@ -43,87 +43,74 @@ $Connection = @{
 }
 Connect-CWM @Connection
 
-# Extract filters
-$TicketId       = $Request.Body.TicketId
-$Summary        = $Request.Body.SummaryContains
-$Status         = $Request.Body.Status
-$Priority       = $Request.Body.Priority
-$Company        = $Request.Body.Company
-$Contact        = $Request.Body.Contact
-$Board          = $Request.Body.Board
-$ConfigItem     = $Request.Body.ConfigItem
-$CreatedAfter   = $Request.Body.CreatedAfter
-$CreatedBefore  = $Request.Body.CreatedBefore
-$Keyword        = $Request.Body.Keyword
-$SecurityKey    = $env:SecurityKey
-
+# Security key check
+$SecurityKey = $env:SecurityKey
 if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
     Write-Host "Invalid security key"
-    break
+    Disconnect-CWM
+    return
 }
 
-# Build query conditions
+# Extract request body
+$Body = $Request.Body
+
+# Apply defaults (last 12 months)
+$CreatedAfter  = $Body.CreatedAfter  ?: (Get-Date).AddMonths(-12).ToString("yyyy-MM-dd")
+$CreatedBefore = $Body.CreatedBefore ?: (Get-Date).ToString("yyyy-MM-dd")
+
+# Build filter conditions
 $conditions = @()
-if ($TicketId)      { $conditions += "id=$TicketId" }
-if ($Summary)       { $conditions += "summary contains '$Summary'" }
-if ($Status)        { $conditions += "status/name='$Status'" }
-if ($Priority)      { $conditions += "priority/name='$Priority'" }
-if ($Company)       { $conditions += "company/name contains '$Company'" }
-if ($Contact)       { $conditions += "contact/name='$Contact'" }
-if ($Board)         { $conditions += "board/name='$Board'" }
-if ($ConfigItem)    { $conditions += "configurationItems/identifier='$ConfigItem'" }
-if ($CreatedAfter)  { $conditions += "dateEntered>[$CreatedAfter]" }
-if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
+if ($Body.TicketId)      { $conditions += "id=$($Body.TicketId)" }
+if ($Body.SummaryContains) { $conditions += "summary contains '$($Body.SummaryContains)'" }
+if ($Body.Status)        { $conditions += "status/name='$($Body.Status)'" }
+if ($Body.Priority)      { $conditions += "priority/name='$($Body.Priority)'" }
+if ($Body.Company)       { $conditions += "company/name contains '$($Body.Company)'" }
+if ($Body.Contact)       { $conditions += "contact/name='$($Body.Contact)'" }
+if ($Body.Board)         { $conditions += "board/name='$($Body.Board)'" }
+if ($Body.ConfigItem)    { $conditions += "configurationItems/identifier='$($Body.ConfigItem)'" }
+$conditions += "dateEntered>[$CreatedAfter]"
+$conditions += "dateEntered<[$CreatedBefore]"
 
 $filter = $conditions -join " and "
+$pageSize = [int]($Body.MaxResults ?: 50)
 
-# Fetch tickets using the existing Get-CWMTicket function
-$pageSize = if ($Request.Body.MaxResults) { [int]$Request.Body.MaxResults } else { 50 }
+# Fetch tickets
 $tickets = Get-CWMTicket -condition $filter -pageSize $pageSize -all:$false
 
-# Enrich and filter tickets
-$enrichedTickets = @()
-foreach ($ticket in $tickets) {
-    $ticketId = $ticket.id
-    $notes = Get-CWMTicketNote -ticketId $ticketId
+# Enrich tickets (with optional keyword filtering)
+$enrichedTickets = foreach ($ticket in $tickets) {
+    $notes = @()
+    $includeTicket = $true
 
-    # If a keyword is provided, filter tickets based on note content
-    if ($Keyword) {
-        $matchFound = $false
-        foreach ($note in $notes) {
-            if ($note.text -like "*$Keyword*") {
-                $matchFound = $true
-                break
-            }
-        }
-        if (-not $matchFound) {
-            continue
-        }
+    if ($Body.Keyword) {
+        $notes = Get-CWMTicketNote -ticketId $ticket.id
+        $includeTicket = $notes | Where-Object { $_.text -like "*$($Body.Keyword)*" } | Select-Object -First 1
+    } else {
+        $notes = Get-CWMTicketNote -ticketId $ticket.id
     }
 
-    # Extract resolution if available
-    $resolutionNote = $notes | Where-Object { $_.internalAnalysisFlag -eq $true -or $_.resolutionFlag -eq $true } | Select-Object -First 1
-    $resolutionText = if ($resolutionNote) { $resolutionNote.text } else { $ticket.resolution }
-
-    $enrichedTickets += @{
-        id          = $ticket.id
-        summary     = $ticket.summary
-        status      = $ticket.status.name
-        priority    = $ticket.priority.name
-        company     = $ticket.company.name
-        contact     = $ticket.contact.name
-        board       = $ticket.board.name
-        dateEntered = $ticket.dateEntered
-        notes       = $notes
-        resolution  = $resolutionText
+    if ($includeTicket) {
+        $resolutionNote = $notes | Where-Object { $_.internalAnalysisFlag -or $_.resolutionFlag } | Select-Object -First 1
+        [PSCustomObject]@{
+            id          = $ticket.id
+            summary     = $ticket.summary
+            status      = $ticket.status.name
+            priority    = $ticket.priority.name
+            company     = $ticket.company.name
+            contact     = $ticket.contact.name
+            board       = $ticket.board.name
+            dateEntered = $ticket.dateEntered
+            notes       = $notes
+            resolution  = $resolutionNote?.text ?: $ticket.resolution
+        }
     }
 }
 
+# Convert and respond
 $body = $enrichedTickets | ConvertTo-Json -Depth 10
-
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode = [HttpStatusCode]::OK
-    Body = $body
+    Body       = $body
     ContentType = "application/json"
 })
 
