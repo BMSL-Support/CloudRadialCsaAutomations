@@ -1,30 +1,30 @@
-<# 
-.SYNOPSIS
-    Retrieves ConnectWise tickets with filters, notes, and resolution details.
+
+<# .SYNOPSIS
+Retrieves ConnectWise tickets with filters, notes, and resolution details.
 
 .DESCRIPTION
-    This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
-    It also supports post-filtering based on a keyword found in the ticket notes.
+This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
+It also supports post-filtering based on a keyword found in the ticket notes.
 
 .INPUTS
-    JSON Structure:
-    {
-        "TicketId": "123456",
-        "SummaryContains": "printer",
-        "Status": "New",
-        "Priority": "High",
-        "Company": "Fabrikam Ltd",
-        "Contact": "Joe Bloggs",
-        "Board": "Service Desk",
-        "ConfigItem": "Printer-01",
-        "CreatedAfter": "2023-01-01",
-        "CreatedBefore": "2024-12-31",
-        "Keyword": "AI",
-        "SecurityKey": "optional"
-    }
+JSON Structure:
+{
+"TicketId": "123456",
+"SummaryContains": "printer",
+"Status": "New",
+"Priority": "High",
+"Company": "Fabrikam Ltd",
+"Contact": "Joe Bloggs",
+"Board": "Service Desk",
+"ConfigItem": "Printer-01",
+"CreatedAfter": "2023-01-01",
+"CreatedBefore": "2024-12-31",
+"Keyword": "AI",
+"SecurityKey": "optional"
+}
 
 .OUTPUTS
-    JSON array of enriched tickets
+JSON array of enriched tickets
 #>
 
 using namespace System.Net
@@ -62,29 +62,41 @@ if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
     break
 }
 
-# Build query conditions
-$conditions = @()
-if ($TicketId)      { $conditions += "id=$TicketId" }
-# Support multi-word summary matching
-$summaryWords = $Summary -split '\s+'
-foreach ($word in $summaryWords) {
-    $conditions += "summary contains '$word'"
+# Default to recent tickets (last 6 months) if CreatedAfter is not provided
+$defaultStartDate = (Get-Date).AddMonths(-6).ToString("yyyy-MM-dd")
+if (-not $CreatedAfter) {
+    $CreatedAfter = $defaultStartDate
 }
-if ($Status)        { $conditions += "status/name='$Status'" }
-if ($Priority)      { $conditions += "priority/name='$Priority'" }
-if ($Company)       { $conditions += "company/name contains '$Company'" }
-if ($Contact)       { $conditions += "contact/name='$Contact'" }
-if ($Board)         { $conditions += "board/name='$Board'" }
-if ($ConfigItem)    { $conditions += "configurationItems/identifier='$ConfigItem'" }
-if ($CreatedAfter)  { $conditions += "dateEntered>[$CreatedAfter]" }
-if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
 
-$filter = $conditions -join " and "
+# Build query conditions
+function Build-Conditions {
+    param($TicketId, $Summary, $Status, $Priority, $Company, $Contact, $Board, $ConfigItem, $CreatedAfter, $CreatedBefore)
+    $conditions = @()
+    if ($TicketId)      { $conditions += "id=$TicketId" }
+    if ($Summary)       { $conditions += "summary contains '$Summary'" }
+    if ($Status)        { $conditions += "status/name='$Status'" }
+    if ($Priority)      { $conditions += "priority/name='$Priority'" }
+    if ($Company)       { $conditions += "company/name contains '$Company'" }
+    if ($Contact)       { $conditions += "contact/name='$Contact'" }
+    if ($Board)         { $conditions += "board/name='$Board'" }
+    if ($ConfigItem)    { $conditions += "configurationItems/identifier='$ConfigItem'" }
+    if ($CreatedAfter)  { $conditions += "dateEntered>[$CreatedAfter]" }
+    if ($CreatedBefore) { $conditions += "dateEntered<[$CreatedBefore]" }
+    return $conditions -join " and "
+}
+
+$filter = Build-Conditions -TicketId $TicketId -Summary $Summary -Status $Status -Priority $Priority -Company $Company -Contact $Contact -Board $Board -ConfigItem $ConfigItem -CreatedAfter $CreatedAfter -CreatedBefore $CreatedBefore
 
 # Fetch tickets using the existing Get-CWMTicket function
+$tickets = Get-CWMTicket -condition $filter -pageSize 50 -all:$false
 
-$pageSize = if ($Request.Body.MaxResults) { [int]$Request.Body.MaxResults } else { 50 }
-$tickets = Get-CWMTicket -condition $filter -pageSize $pageSize -all:$false
+# If no tickets found and CreatedAfter was not explicitly provided, retry without CreatedAfter
+if ($tickets.Count -eq 0 -and -not $Request.Body.CreatedAfter) {
+    Write-Host "No tickets found in last 6 months. Expanding search..."
+    $CreatedAfter = $null
+    $filter = Build-Conditions -TicketId $TicketId -Summary $Summary -Status $Status -Priority $Priority -Company $Company -Contact $Contact -Board $Board -ConfigItem $ConfigItem -CreatedAfter $CreatedAfter -CreatedBefore $CreatedBefore
+    $tickets = Get-CWMTicket -condition $filter -pageSize 50 -all:$false
+}
 
 # Enrich and filter tickets
 $enrichedTickets = @()
@@ -93,25 +105,17 @@ foreach ($ticket in $tickets) {
     $notes = Get-CWMTicketNote -ticketId $ticketId
 
     # If a keyword is provided, filter tickets based on note content
-# Support multiple keywords in notes
-$keywords = $Keyword -split ',\s*'
-$matchFound = $false
-foreach ($note in $notes) {
-    foreach ($kw in $keywords) {
-        if ($note.text -like "*$kw*") {
-            $matchFound = $true
-            break
-        }
-    }
-    if ($matchFound) { break }
-}
-if (-not $matchFound) { continue }
+    if ($Keyword) {
+        $keywords = $Keyword -split ',\s*'
         $matchFound = $false
         foreach ($note in $notes) {
-            if ($note.text -like "*$Keyword*") {
-                $matchFound = $true
-                break
+            foreach ($kw in $keywords) {
+                if ($note.text -like "*$kw*") {
+                    $matchFound = $true
+                    break
+                }
             }
+            if ($matchFound) { break }
         }
         if (-not $matchFound) {
             continue
@@ -134,10 +138,10 @@ if (-not $matchFound) { continue }
         notes       = $notes
         resolution  = $resolutionText
     }
-
+}
 
 $body = @{
-    tickets = ($enrichedTickets | ConvertTo-Json -Depth 6)
+    tickets = ($enrichedTickets | ConvertTo-Json -Depth 10)
 }
 
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
