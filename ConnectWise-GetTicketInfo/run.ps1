@@ -1,31 +1,30 @@
-
 <# 
 .SYNOPSIS
-Retrieves ConnectWise tickets with filters, notes, and resolution details.
+    Retrieves ConnectWise tickets with filters, notes, and resolution details.
 
 .DESCRIPTION
-This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
-It also supports post-filtering based on a keyword found in the ticket notes.
+    This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
+    It also supports post-filtering based on a keyword found in the ticket notes.
 
 .INPUTS
-JSON Structure:
-{
-"TicketId": "123456",
-"SummaryContains": "printer",
-"Status": "New",
-"Priority": "High",
-"Company": "Fabrikam Ltd",
-"Contact": "Joe Bloggs",
-"Board": "Service Desk",
-"ConfigItem": "Printer-01",
-"CreatedAfter": "2023-01-01",
-"CreatedBefore": "2024-12-31",
-"Keyword": "AI",
-"SecurityKey": "optional"
-}
+    JSON Structure:
+    {
+        "TicketId": "123456",
+        "SummaryContains": "printer",
+        "Status": "New",
+        "Priority": "High",
+        "Company": "Fabrikam Ltd",
+        "Contact": "Joe Bloggs",
+        "Board": "Service Desk",
+        "ConfigItem": "Printer-01",
+        "CreatedAfter": "2023-01-01",
+        "CreatedBefore": "2024-12-31",
+        "Keyword": "AI",
+        "SecurityKey": "optional"
+    }
 
 .OUTPUTS
-JSON array of enriched tickets
+    JSON array of enriched tickets
 #>
 
 using namespace System.Net
@@ -59,18 +58,18 @@ $Keyword        = $Request.Body.Keyword
 $SecurityKey    = $env:SecurityKey
 
 if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
-    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode = [HttpStatusCode]::Unauthorized
-        Body = @{ error = "Invalid security key" }
-        ContentType = "application/json"
-    })
-    return
+    Write-Host "Invalid security key"
+    break
 }
 
 # Build query conditions
 $conditions = @()
 if ($TicketId)      { $conditions += "id=$TicketId" }
-if ($Summary)       { $conditions += "summary contains '$Summary'" }
+# Support multi-word summary matching
+$summaryWords = $Summary -split '\s+'
+foreach ($word in $summaryWords) {
+    $conditions += "summary contains '$word'"
+}
 if ($Status)        { $conditions += "status/name='$Status'" }
 if ($Priority)      { $conditions += "priority/name='$Priority'" }
 if ($Company)       { $conditions += "company/name contains '$Company'" }
@@ -92,7 +91,19 @@ foreach ($ticket in $tickets) {
     $notes = Get-CWMTicketNote -ticketId $ticketId
 
     # If a keyword is provided, filter tickets based on note content
-    if ($Keyword) {
+# Support multiple keywords in notes
+$keywords = $Keyword -split ',\s*'
+$matchFound = $false
+foreach ($note in $notes) {
+    foreach ($kw in $keywords) {
+        if ($note.text -like "*$kw*") {
+            $matchFound = $true
+            break
+        }
+    }
+    if ($matchFound) { break }
+}
+if (-not $matchFound) { continue }
         $matchFound = $false
         foreach ($note in $notes) {
             if ($note.text -like "*$Keyword*") {
