@@ -132,7 +132,7 @@ if (-not $matchFound) { continue }
         notes       = $notes
         resolution  = $resolutionText
     }
-}
+
 
 $body = @{
     tickets = ($enrichedTickets | ConvertTo-Json -Depth 6)
