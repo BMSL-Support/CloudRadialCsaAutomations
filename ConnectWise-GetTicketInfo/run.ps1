@@ -56,6 +56,7 @@ $Body = $Request.Body
 
 # Apply defaults (last 12 months)
 $CreatedAfter  = if ($Body.CreatedAfter) { $Body.CreatedAfter } else { (Get-Date).AddMonths(-12).ToString("yyyy-MM-dd") }
+$CreatedBefore = if ($Body.CreatedBefore) { $Body.CreatedBefore } else { (Get-Date).AddDays(+1).ToString("yyyy-MM-dd") }
 
 # Build filter conditions
 $conditions = @()
