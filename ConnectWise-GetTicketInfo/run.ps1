@@ -109,7 +109,7 @@ $enrichedTickets = foreach ($ticket in $tickets) {
 }
 
 # Convert and respond
-$body = $enrichedTickets | ConvertTo-Json -Depth 10
+$body = @($enrichedTickets) | ConvertTo-Json -Depth 10
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
     StatusCode  = [HttpStatusCode]::OK
     Body        = $body
