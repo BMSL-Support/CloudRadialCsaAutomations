@@ -51,19 +51,20 @@ if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
 # Extract request body
 $Body = $Request.Body
 
-# Apply default date range (last 12 months to tomorrow)
-$CreatedAfter  = if ($Body.CreatedAfter) { $Body.CreatedAfter } else { (Get-Date).AddMonths(-12).ToString("yyyy-MM-dd") }
+
+# Apply default date range (last 6 months to tomorrow)
+$CreatedAfter  = if ($Body.CreatedAfter) { $Body.CreatedAfter } else { (Get-Date).AddMonths(-6).ToString("yyyy-MM-dd") }
 $CreatedBefore = if ($Body.CreatedBefore) { $Body.CreatedBefore } else { (Get-Date).AddDays(1).ToString("yyyy-MM-dd") }
 
 # Build filter conditions
 $conditions = @()
-if ($Body.SummaryContains)     { $conditions += "summary contains '$($Body.SummaryContains)'" }
-if ($Body.Status)              { $conditions += "status/name='$($Body.Status)'" }
-if ($Body.Priority)            { $conditions += "priority/name='$($Body.Priority)'" }
-if ($Body.Company)             { $conditions += "company/name contains '$($Body.Company)'" }
-if ($Body.Contact)             { $conditions += "contact/name='$($Body.Contact)'" }
-if ($Body.Board)               { $conditions += "board/name='$($Body.Board)'" }
-if ($Body.ConfigItem)          { $conditions += "configurationItems/identifier='$($Body.ConfigItem)'" }
+if ($Body.SummaryContains)     { $conditions += "summary contains '$($Body.SummaryContains)'" }
+if ($Body.Status)              { $conditions += "status/name='$($Body.Status)'" }
+if ($Body.Priority)            { $conditions += "priority/name='$($Body.Priority)'" }
+if ($Body.Company)             { $conditions += "company/name contains '$($Body.Company)'" }
+if ($Body.Contact)             { $conditions += "contact/name='$($Body.Contact)'" }
+if ($Body.Board)               { $conditions += "board/name='$($Body.Board)'" }
+if ($Body.ConfigItem)          { $conditions += "configurationItems/identifier='$($Body.ConfigItem)'" }
 $conditions += "dateEntered>[$CreatedAfter]"
 $conditions += "dateEntered<[$CreatedBefore]"
 $filter = $conditions -join " and "
@@ -72,10 +73,11 @@ $pageSize = if ($Body.MaxResults) { [int]$Body.MaxResults } else { 10 }
 
 # Fetch tickets using the helper function
 $tickets = if ($Body.TicketId) {
-    Get-CWMTicket -id $Body.TicketId
+    Get-CWMTicket -id $Body.TicketId
 } else {
-    Get-CWMTicket -condition $filter -pageSize $pageSize -all:$false
+    Get-CWMTicket -condition $filter -pageSize $pageSize -orderBy "dateEntered desc" -all:$false
 }
+
 
 # Enrich tickets (with optional keyword filtering)
 $enrichedTickets = foreach ($ticket in $tickets) {
