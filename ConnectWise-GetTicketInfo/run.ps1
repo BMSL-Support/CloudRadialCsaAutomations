@@ -109,10 +109,19 @@ $enrichedTickets = foreach ($ticket in $tickets) {
 }
 
 # Convert and respond
-$body = @($enrichedTickets) | ConvertTo-Json -Depth 10
+
+# Normalize to array if needed
+if ($enrichedTickets -isnot [System.Collections.IEnumerable] -or $enrichedTickets -is [string]) {
+    $body = @($enrichedTickets)
+} else {
+    $body = $enrichedTickets
+}
+
+$json = $body | ConvertTo-Json -Depth 10
+
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-    StatusCode  = [HttpStatusCode]::OK
-    Body        = $body
+    StatusCode = [HttpStatusCode]::OK
+    Body = $json
     ContentType = "application/json"
 })
 
