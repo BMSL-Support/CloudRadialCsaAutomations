@@ -1,30 +1,5 @@
 
-<#
-.SYNOPSIS
-Retrieves ConnectWise tickets with filters, notes, and resolution details.
-.DESCRIPTION
-This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information.
-It also supports post-filtering based on a keyword found in the ticket notes.
-.INPUTS
-JSON Structure:
-{
-"TicketId": "123456",
-"SummaryContains": "printer",
-"Status": "New",
-"Priority": "High",
-"Company": "Fabrikam Ltd",
-"Contact": "Joe Bloggs",
-"Board": "Service Desk",
-"ConfigItem": "Printer-01",
-"CreatedAfter": "2023-01-01",
-"CreatedBefore": "2024-12-31",
-"Keyword": "AI",
-"MaxResults": "10",
-"SecurityKey": "optional"
-}
-.OUTPUTS
-JSON array of enriched tickets
-#>
+<# .SYNOPSIS Retrieves ConnectWise tickets with filters, notes, and resolution details. .DESCRIPTION This function queries ConnectWise for tickets using advanced filters and enriches each ticket with notes and resolution information. It also supports post-filtering based on a keyword found in the ticket notes. .INPUTS JSON Structure: { "TicketId": "123456", "SummaryContains": "printer", "Status": "New", "Priority": "High", "Company": "Fabrikam Ltd", "Contact": "Joe Bloggs", "Board": "Service Desk", "ConfigItem": "Printer-01", "CreatedAfter": "2023-01-01", "CreatedBefore": "2024-12-31", "Keyword": "AI", "MaxResults": "10", "SecurityKey": "optional" } .OUTPUTS JSON array of enriched tickets #>
 
 using namespace System.Net
 param($Request, $TriggerMetadata)
@@ -33,20 +8,20 @@ Import-Module "C:\home\site\wwwroot\Modules\ConnectWiseManageAPI\ConnectWiseMana
 
 # Connect to ConnectWise
 $Connection = @{
-Server     = $env:ConnectWisePsa_ApiBaseUrl
-Company    = $env:ConnectWisePsa_ApiCompanyId
-PubKey     = $env:ConnectWisePsa_ApiPublicKey
-PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
-ClientID   = $env:ConnectWisePsa_ApiClientId
+    Server     = $env:ConnectWisePsa_ApiBaseUrl
+    Company    = $env:ConnectWisePsa_ApiCompanyId
+    PubKey     = $env:ConnectWisePsa_ApiPublicKey
+    PrivateKey = $env:ConnectWisePsa_ApiPrivateKey
+    ClientID   = $env:ConnectWisePsa_ApiClientId
 }
 Connect-CWM @Connection
 
 # Security key check
 $SecurityKey = $env:SecurityKey
 if ($SecurityKey -and $SecurityKey -ne $Request.Headers.SecurityKey) {
-Write-Host "Invalid security key"
-Disconnect-CWM
-return
+    Write-Host "Invalid security key"
+    Disconnect-CWM
+    return
 }
 
 # Extract request body
@@ -58,13 +33,13 @@ $CreatedBefore = if ($Body.CreatedBefore) { $Body.CreatedBefore } else { (Get-Da
 
 # Build filter conditions
 $conditions = @()
-if ($Body.SummaryContains)      { $conditions += "summary contains '$($Body.SummaryContains)'" }
-if ($Body.Status)               { $conditions += "status/name='$($Body.Status)'" }
-if ($Body.Priority)             { $conditions += "priority/name='$($Body.Priority)'" }
-if ($Body.Company)              { $conditions += "company/name contains '$($Body.Company)'" }
-if ($Body.Contact)              { $conditions += "contact/name='$($Body.Contact)'" }
-if ($Body.Board)                { $conditions += "board/name='$($Body.Board)'" }
-if ($Body.ConfigItem)           { $conditions += "configurationItems/identifier='$($Body.ConfigItem)'" }
+if ($Body.SummaryContains)    { $conditions += "summary contains '$($Body.SummaryContains)'" }
+if ($Body.Status)             { $conditions += "status/name='$($Body.Status)'" }
+if ($Body.Priority)           { $conditions += "priority/name='$($Body.Priority)'" }
+if ($Body.Company)            { $conditions += "company/name contains '$($Body.Company)'" }
+if ($Body.Contact)            { $conditions += "contact/name='$($Body.Contact)'" }
+if ($Body.Board)              { $conditions += "board/name='$($Body.Board)'" }
+if ($Body.ConfigItem)         { $conditions += "configurationItems/identifier='$($Body.ConfigItem)'" }
 $conditions += "dateEntered>[$CreatedAfter]"
 $conditions += "dateEntered<[$CreatedBefore]"
 $filter = $conditions -join " and "
@@ -73,51 +48,46 @@ $pageSize = if ($Body.MaxResults) { [int]$Body.MaxResults } else { 10 }
 
 # Fetch tickets using the helper function
 $tickets = if ($Body.TicketId) {
-Get-CWMTicket -id $Body.TicketId
+    Get-CWMTicket -id $Body.TicketId
 } else {
-Get-CWMTicket -condition $filter -pageSize $pageSize -orderBy "dateEntered desc" -all:$false
+    Get-CWMTicket -condition $filter -pageSize $pageSize -orderBy "dateEntered desc" -all:$false
 }
 
 # Enrich tickets (with optional keyword filtering)
 $enrichedTickets = foreach ($ticket in $tickets) {
-$notes = @()
-$includeTicket = $true
+    $notes = @()
+    $includeTicket = $true
 
-if ($Body.Keyword) {
-$notes = Get-CWMTicketNote -ticketId $ticket.id
-$includeTicket = $notes | Where-Object { $_.text -like "*$($Body.Keyword)*" } | Select-Object -First 1
-} else {
-$notes = Get-CWMTicketNote -ticketId $ticket.id
-}
+    if ($Body.Keyword) {
+        $notes = Get-CWMTicketNote -ticketId $ticket.id
+        $includeTicket = $notes | Where-Object { $_.text -like "*$($Body.Keyword)*" } | Select-Object -First 1
+    } else {
+        $notes = Get-CWMTicketNote -ticketId $ticket.id
+    }
 
-if ($includeTicket) {
-$resolutionNote = $notes | Where-Object { $_.internalAnalysisFlag -or $_.resolutionFlag } | Select-Object -First 1
-[PSCustomObject]@{
-id         = $ticket.id
-summary    = $ticket.summary
-status     = $ticket.status.name
-priority   = $ticket.priority.name
-company    = $ticket.company.name
-contact    = $ticket.contact.name
-board      = $ticket.board.name
-dateEntered= $ticket.dateEntered
-notes      = $notes
-resolution = if ($null -ne $resolutionNote.text -and $resolutionNote.text -ne "") { $resolutionNote.text } else { $ticket.resolution }
-}
-}
+    if ($includeTicket) {
+        $resolutionNote = $notes | Where-Object { $_.internalAnalysisFlag -or $_.resolutionFlag } | Select-Object -First 1
+        [PSCustomObject]@{
+            id         = $ticket.id
+            summary    = $ticket.summary
+            status     = $ticket.status.name
+            priority   = $ticket.priority.name
+            company    = $ticket.company.name
+            contact    = $ticket.contact.name
+            board      = $ticket.board.name
+            dateEntered= $ticket.dateEntered
+            notes      = $notes
+            resolution = if ($null -ne $resolutionNote.text -and $resolutionNote.text -ne "") { $resolutionNote.text } else { $ticket.resolution }
+        }
+    }
 }
 
 # Convert and respond
-$body = if ($enrichedTickets -isnot [System.Collections.IEnumerable] -or $enrichedTickets -is [string]) {
-@($enrichedTickets) | ConvertTo-Json -Depth 10
-} else {
-$enrichedTickets | ConvertTo-Json -Depth 10
-}
-
+$body = @($enrichedTickets) | ConvertTo-Json -Depth 10
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-StatusCode  = [HttpStatusCode]::OK
-Body        = $body
-ContentType = "application/json"
+    StatusCode  = [HttpStatusCode]::OK
+    Body        = $body
+    ContentType = "application/json"
 })
 
 Disconnect-CWM
