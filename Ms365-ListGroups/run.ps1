@@ -110,7 +110,12 @@ Connect-MgGraph -ClientSecretCredential $credential365 -TenantId $tenantId -NoWe
 $securityGroups = Get-MgGroup -Filter "securityEnabled eq true" -All
 
 # Filter groups that start with "Security -" or "Data -"
-$filteredGroups = $securityGroups | Where-Object { $_.DisplayName -like "Security -*" -or $_.DisplayName -like "Data -*" -or $_.DisplayName -like "SP Data -*" -or $_.DisplayName -like "[SP] *"}
+$filteredGroups = $securityGroups | Where-Object {
+    $_.DisplayName -like "Security -*" -or
+    $_.DisplayName -like "Data -*" -or
+    $_.DisplayName -like "SP Data -*" -or
+    $_.DisplayName -match '^\[SP\]'
+}
 
 # Extract group names
 $groupNames = $filteredGroups | Select-Object -ExpandProperty DisplayName 
