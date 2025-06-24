@@ -124,6 +124,18 @@ foreach ($user in $users) {
     }
 }
 
+# Get members of the "Shared Mailboxes" security group and add to the sharedMailboxes array
+$group = Get-MgGroup -Filter "displayName eq 'Shared Mailboxes'" -ErrorAction SilentlyContinue
+if ($group) {
+    $groupMembers = Get-MgGroupMember -GroupId $group.Id -All
+    foreach ($member in $groupMembers) {
+        # If the member is a user, add their DisplayName (or Mail) to sharedMailboxes
+        if ($member.AdditionalProperties['userPrincipalName']) {
+            $sharedMailboxes += $member.AdditionalProperties['displayName']
+        }
+    }
+}
+
 $sharedMailboxes | Where-Object { $_ -ne $null }
 
 # Convert the array of group names to a comma-separated string
