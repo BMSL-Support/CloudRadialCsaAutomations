@@ -41,6 +41,38 @@ try {
         Headers = @{ "Content-Type" = "text/plain" }
     })
 }
+
+# Validate required fields
+$missingFields = @()
+
+if (-not $jsonObj.TenantId -or $jsonObj.TenantId -match '^@') {
+    $missingFields += "TenantId"
+}
+if (-not $jsonObj.TicketId -or $jsonObj.TicketId -match '^@') {
+    $missingFields += "TicketId"
+}
+if (-not $jsonObj.AccountDetails) {
+    $missingFields += "AccountDetails"
+} else {
+    if (-not $jsonObj.AccountDetails.GivenName -or $jsonObj.AccountDetails.GivenName -match '^@') {
+        $missingFields += "AccountDetails.GivenName"
+    }
+    if (-not $jsonObj.AccountDetails.Surname -or $jsonObj.AccountDetails.Surname -match '^@') {
+        $missingFields += "AccountDetails.Surname"
+    }
+    if (-not $jsonObj.AccountDetails.UserPrincipalName -or $jsonObj.AccountDetails.UserPrincipalName -match '^@') {
+        $missingFields += "AccountDetails.UserPrincipalName"
+    }
+}
+
+if ($missingFields.Count -gt 0) {
+    return Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+        StatusCode = 400
+        Body = "Validation failed: Missing or placeholder values for: $($missingFields -join ', ')"
+        Headers = @{ "Content-Type" = "text/plain" }
+    })
+}
+
 # Clean the JSON
 $cleaned = Clear-ObjectPlaceholders -obj $jsonObj
 
