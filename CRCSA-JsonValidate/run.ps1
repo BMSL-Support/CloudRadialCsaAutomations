@@ -12,13 +12,12 @@ function Clear-ObjectPlaceholders {
         $visited = @{}
     }
 
-    # Prevent infinite recursion for circular references
-    if ($obj -is [object] -and $visited.ContainsKey($obj)) {
+    # Use object hash code for recursion guard
+    $objHash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($obj)
+    if ($visited.ContainsKey($objHash)) {
         return $null
     }
-    if ($obj -is [object]) {
-        $visited[$obj] = $true
-    }
+    $visited[$objHash] = $true
 
     if ($obj -is [System.Collections.IDictionary] -or $obj -is [PSCustomObject]) {
         $cleaned = @{}
