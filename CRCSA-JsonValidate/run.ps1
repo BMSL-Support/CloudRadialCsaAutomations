@@ -31,8 +31,8 @@ function Clear-ObjectPlaceholders {
 }
 
 # Read and parse the incoming JSON
-Write-Host "Raw body: $body"
 $body = $Request.Body
+Write-Host "Raw body: $body"
 try {
     $jsonObj = $body | ConvertFrom-Json
 } catch {
