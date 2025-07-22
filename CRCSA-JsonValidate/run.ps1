@@ -31,8 +31,8 @@ function Clear-ObjectPlaceholders {
 }
 
 # Read and parse the incoming JSON
-$body = [System.Text.Encoding]::UTF8.GetString($Request.Body)
-
+Write-Host "Raw body: $body"
+$body = $Request.Body
 try {
     $jsonObj = $body | ConvertFrom-Json
 } catch {
@@ -42,6 +42,7 @@ try {
         Headers = @{ "Content-Type" = "text/plain" }
     })
 }
+
 
 # Validate required fields
 $missingFields = @()
