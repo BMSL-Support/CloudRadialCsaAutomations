@@ -12,14 +12,14 @@ function Clear-ObjectPlaceholders {
         $visited = @{}
     }
 
-    # Use object hash code for recursion guard
-    $objHash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($obj)
-    if ($visited.ContainsKey($objHash)) {
-        return $null
-    }
-    $visited[$objHash] = $true
-
+    # Only guard recursion for objects (not arrays or primitives)
     if ($obj -is [System.Collections.IDictionary] -or $obj -is [PSCustomObject]) {
+        $objHash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($obj)
+        if ($visited.ContainsKey($objHash)) {
+            return $null
+        }
+        $visited[$objHash] = $true
+
         $cleaned = @{}
         foreach ($property in $obj.PSObject.Properties) {
             $value = Clear-ObjectPlaceholders -obj $property.Value -visited $visited
