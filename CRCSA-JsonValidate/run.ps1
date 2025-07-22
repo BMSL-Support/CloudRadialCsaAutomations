@@ -30,19 +30,9 @@ function Clear-ObjectPlaceholders {
     return $obj
 }
 
-# Read and parse the incoming JSON
-$body = $Request.Body
-Write-Host "Raw body: $body"
-try {
-    $jsonObj = $body | ConvertFrom-Json
-} catch {
-    return Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode = 400
-        Body = "Invalid JSON"
-        Headers = @{ "Content-Type" = "text/plain" }
-    })
-}
-
+# Use the deserialized request body directly
+$jsonObj = $Request.Body
+Write-Host "Parsed body type: $($jsonObj.GetType().FullName)"
 
 # Validate required fields
 $missingFields = @()
@@ -68,6 +58,7 @@ if (-not $jsonObj.AccountDetails) {
 }
 
 if ($missingFields.Count -gt 0) {
+    Write-Host "Validation failed for fields: $($missingFields -join ', ')"
     return Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
         StatusCode = 400
         Body = "Validation failed: Missing or placeholder values for: $($missingFields -join ', ')"
@@ -77,6 +68,7 @@ if ($missingFields.Count -gt 0) {
 
 # Clean the JSON
 $cleaned = Clear-ObjectPlaceholders -obj $jsonObj
+Write-Host "Validation passed. Returning cleaned JSON."
 
 # Return the cleaned JSON
 Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
