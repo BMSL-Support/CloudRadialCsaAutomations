@@ -17,6 +17,10 @@ function Clear-ObjectPlaceholders {
         return if ($cleaned.Count -eq 0) { $null } else { $cleaned }
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
+        # If array contains only one item and it's a placeholder, return empty array
+        if ($obj.Count -eq 1 -and $obj[0] -is [string] -and $obj[0].Trim() -match '^@') {
+            return @()
+        }
         $newArray = @()
         foreach ($item in $obj) {
             $cleaned = Clear-ObjectPlaceholders -obj $item
