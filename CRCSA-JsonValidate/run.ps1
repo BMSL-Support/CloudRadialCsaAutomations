@@ -24,7 +24,7 @@ function Clear-ObjectPlaceholders {
         }
         return if ($newArray.Count -eq 0) { $null } else { $newArray }
     }
-    elseif ($obj -is [string] -and $obj -match '^@') {
+    elseif ($obj -is [string] -and $obj.Trim() -match '^@') {
         return $null
     }
     return $obj
