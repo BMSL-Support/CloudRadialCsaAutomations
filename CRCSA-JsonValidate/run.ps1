@@ -5,21 +5,18 @@ param($Request, $TriggerMetadata)
 function Clear-ObjectPlaceholders {
     param ([psobject]$obj)
 
-    if ($obj -is [System.Collections.IDictionary]) {
+    if ($obj -is [System.Collections.IDictionary] -or $obj -is [PSCustomObject]) {
         $cleaned = @{}
-        foreach ($key in @($obj.Keys)) {
-            $value = Clear-ObjectPlaceholders -obj $obj[$key]
-            # Only add if value is not $null
+        foreach ($property in $obj.PSObject.Properties) {
+            $value = Clear-ObjectPlaceholders -obj $property.Value
             if ($null -ne $value -and `
                 -not ($value -is [System.Collections.IEnumerable] -and $value.Count -eq 0)) {
-                $cleaned[$key] = $value
+                $cleaned[$property.Name] = $value
             }
         }
-        # If all properties were removed, return $null
         return if ($cleaned.Count -eq 0) { $null } else { $cleaned }
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
-        # If array contains only one item and it's a placeholder, return empty array
         if ($obj.Count -eq 1 -and $obj[0] -is [string] -and $obj[0].Trim() -match '^@') {
             return @()
         }
