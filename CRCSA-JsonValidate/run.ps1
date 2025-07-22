@@ -31,7 +31,8 @@ function Clear-ObjectPlaceholders {
 }
 
 # Read and parse the incoming JSON
-$body = $Request.Body
+$body = [System.Text.Encoding]::UTF8.GetString($Request.Body)
+
 try {
     $jsonObj = $body | ConvertFrom-Json
 } catch {
