@@ -6,12 +6,14 @@ function Clear-ObjectPlaceholders {
     param ([psobject]$obj)
 
     if ($obj -is [System.Collections.IDictionary]) {
-        $hasNull = $false
+        $cleaned = @{}
         foreach ($key in @($obj.Keys)) {
-            $obj[$key] = Clear-ObjectPlaceholders -obj $obj[$key]
-            if ($null -eq $obj[$key]) { $hasNull = $true }
+            $value = Clear-ObjectPlaceholders -obj $obj[$key]
+            if ($null -ne $value) {
+                $cleaned[$key] = $value
+            }
         }
-        if ($hasNull) { return $null }
+        return $cleaned
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
         if ($obj.Count -eq 1 -and $obj[0] -is [string] -and $obj[0] -match '^@') {
@@ -29,8 +31,6 @@ function Clear-ObjectPlaceholders {
     }
     return $obj
 }
-
-
 
 # Use the deserialized request body directly
 $jsonObj = $Request.Body
