@@ -7,7 +7,7 @@ function Clear-ObjectPlaceholders {
 
     if ($obj -is [System.Collections.IDictionary]) {
         $hasNull = $false
-        foreach ($key in $obj.Keys) {
+        foreach ($key in @($obj.Keys)) {
             $obj[$key] = Clear-ObjectPlaceholders -obj $obj[$key]
             if ($null -eq $obj[$key]) { $hasNull = $true }
         }
@@ -29,6 +29,8 @@ function Clear-ObjectPlaceholders {
     }
     return $obj
 }
+
+
 
 # Use the deserialized request body directly
 $jsonObj = $Request.Body
