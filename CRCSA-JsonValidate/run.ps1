@@ -9,22 +9,20 @@ function Clear-ObjectPlaceholders {
         $cleaned = @{}
         foreach ($key in @($obj.Keys)) {
             $value = Clear-ObjectPlaceholders -obj $obj[$key]
-            if ($null -ne $value) {
+            if ($null -ne $value -and `
+                -not ($value -is [System.Collections.IEnumerable] -and $value.Count -eq 0)) {
                 $cleaned[$key] = $value
             }
         }
-        return $cleaned
+        return if ($cleaned.Count -eq 0) { $null } else { $cleaned }
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
-        if ($obj.Count -eq 1 -and $obj[0] -is [string] -and $obj[0] -match '^@') {
-            return @()
-        }
         $newArray = @()
         foreach ($item in $obj) {
             $cleaned = Clear-ObjectPlaceholders -obj $item
             if ($null -ne $cleaned) { $newArray += ,$cleaned }
         }
-        return $newArray
+        return if ($newArray.Count -eq 0) { $null } else { $newArray }
     }
     elseif ($obj -is [string] -and $obj -match '^@') {
         return $null
