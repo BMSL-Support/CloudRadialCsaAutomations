@@ -31,21 +31,16 @@ function Clear-ObjectPlaceholders {
 }
 
 # Read and parse the incoming JSON
-$body = Get-Content $Request.Body | Out-String
+$body = $Request.Body
 try {
     $jsonObj = $body | ConvertFrom-Json
 } catch {
-    $response = @{
-        status = 400
-        body = "Invalid JSON"
-    }
     return Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
-        StatusCode = [HttpStatusCode]::BadRequest
+        StatusCode = 400
         Body = "Invalid JSON"
         Headers = @{ "Content-Type" = "text/plain" }
     })
 }
-
 # Clean the JSON
 $cleaned = Clear-ObjectPlaceholders -obj $jsonObj
 
