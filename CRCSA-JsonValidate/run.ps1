@@ -9,11 +9,13 @@ function Clear-ObjectPlaceholders {
         $cleaned = @{}
         foreach ($key in @($obj.Keys)) {
             $value = Clear-ObjectPlaceholders -obj $obj[$key]
+            # Only add if value is not $null
             if ($null -ne $value -and `
                 -not ($value -is [System.Collections.IEnumerable] -and $value.Count -eq 0)) {
                 $cleaned[$key] = $value
             }
         }
+        # If all properties were removed, return $null
         return if ($cleaned.Count -eq 0) { $null } else { $cleaned }
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
