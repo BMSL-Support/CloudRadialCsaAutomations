@@ -2,23 +2,18 @@ using namespace System.Net
 
 param($Request, $TriggerMetadata)
 
-# Helper function to recursively remove placeholder values
 function Clear-ObjectPlaceholders {
     param (
         [psobject]$obj,
         [hashtable]$visited = $null
     )
 
-    if ($null -eq $visited) {
-        $visited = @{}
-    }
+    if ($null -eq $visited) { $visited = @{} }
 
     # Only guard recursion for objects
     if ($obj -is [System.Collections.IDictionary] -or $obj -is [PSCustomObject]) {
         $objHash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($obj)
-        if ($visited.ContainsKey($objHash)) {
-            return $null
-        }
+        if ($visited.ContainsKey($objHash)) { return $null }
         $visited[$objHash] = $true
 
         $cleaned = @{}
@@ -29,26 +24,15 @@ function Clear-ObjectPlaceholders {
                 $cleaned[$property.Name] = $value
             }
         }
-        if ($cleaned.Count -eq 0) {
-            return $null
-        } else {
-            return $cleaned
-        }
+        if ($cleaned.Count -eq 0) { return $null } else { return $cleaned }
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
-        if ($obj.Count -eq 1 -and $obj[0] -is [string] -and $obj[0].Trim() -match '^@') {
-            return @()
-        }
         $newArray = @()
         foreach ($item in $obj) {
             $cleaned = Clear-ObjectPlaceholders -obj $item -visited $visited
             if ($null -ne $cleaned) { $newArray += ,$cleaned }
         }
-        if ($newArray.Count -eq 0) {
-            return $null
-        } else {
-            return $newArray
-        }
+        return $newArray
     }
     elseif ($obj -is [string] -and $obj.Trim() -match '^@') {
         return $null
@@ -56,36 +40,28 @@ function Clear-ObjectPlaceholders {
     return $obj
 }
 
-# Validate required fields and check for placeholders
 function Validate-UserJson {
     param([psobject]$jsonObj)
     $missingFields = @()
-
-    if (-not $jsonObj.TenantId -or $jsonObj.TenantId -match '^@') {
-        $missingFields += "TenantId"
-    }
-    if (-not $jsonObj.TicketId -or $jsonObj.TicketId -match '^@') {
-        $missingFields += "TicketId"
-    }
-    if (-not $jsonObj.AccountDetails) {
-        $missingFields += "AccountDetails"
-    } else {
-        if (-not $jsonObj.AccountDetails.GivenName -or $jsonObj.AccountDetails.GivenName -match '^@') {
-            $missingFields += "AccountDetails.GivenName"
-        }
-        if (-not $jsonObj.AccountDetails.Surname -or $jsonObj.AccountDetails.Surname -match '^@') {
-            $missingFields += "AccountDetails.Surname"
-        }
-        if (-not $jsonObj.AccountDetails.UserPrincipalName -or $jsonObj.AccountDetails.UserPrincipalName -match '^@') {
-            $missingFields += "AccountDetails.UserPrincipalName"
-        }
+    if (-not $jsonObj.TenantId -or $jsonObj.TenantId -match '^@') { $missingFields += "TenantId" }
+    if (-not $jsonObj.TicketId -or $jsonObj.TicketId -match '^@') { $missingFields += "TicketId" }
+    if (-not $jsonObj.AccountDetails) { $missingFields += "AccountDetails" }
+    else {
+        if (-not $jsonObj.AccountDetails.GivenName -or $jsonObj.AccountDetails.GivenName -match '^@') { $missingFields += "AccountDetails.GivenName" }
+        if (-not $jsonObj.AccountDetails.Surname -or $jsonObj.AccountDetails.Surname -match '^@') { $missingFields += "AccountDetails.Surname" }
+        if (-not $jsonObj.AccountDetails.UserPrincipalName -or $jsonObj.AccountDetails.UserPrincipalName -match '^@') { $missingFields += "AccountDetails.UserPrincipalName" }
     }
     return $missingFields
 }
 
-# Main logic
 try {
-    $jsonObj = $Request.Body
+    # Ensure the body is deserialized
+    if ($Request.Body -is [string]) {
+        $jsonObj = $Request.Body | ConvertFrom-Json
+    } else {
+        $jsonObj = $Request.Body
+    }
+
     $missingFields = Validate-UserJson -jsonObj $jsonObj
 
     if ($missingFields.Count -gt 0) {
