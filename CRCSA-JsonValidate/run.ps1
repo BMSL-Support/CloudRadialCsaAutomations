@@ -3,12 +3,27 @@ using namespace System.Net
 param($Request, $TriggerMetadata)
 
 function Clear-ObjectPlaceholders {
-    param ([psobject]$obj)
+    param (
+        [psobject]$obj,
+        [hashtable]$visited = $null
+    )
+
+    if ($null -eq $visited) {
+        $visited = @{}
+    }
+
+    # Prevent infinite recursion for circular references
+    if ($obj -is [object] -and $visited.ContainsKey($obj)) {
+        return $null
+    }
+    if ($obj -is [object]) {
+        $visited[$obj] = $true
+    }
 
     if ($obj -is [System.Collections.IDictionary] -or $obj -is [PSCustomObject]) {
         $cleaned = @{}
         foreach ($property in $obj.PSObject.Properties) {
-            $value = Clear-ObjectPlaceholders -obj $property.Value
+            $value = Clear-ObjectPlaceholders -obj $property.Value -visited $visited
             if ($null -ne $value -and `
                 -not ($value -is [System.Collections.IEnumerable] -and $value.Count -eq 0)) {
                 $cleaned[$property.Name] = $value
@@ -26,7 +41,7 @@ function Clear-ObjectPlaceholders {
         }
         $newArray = @()
         foreach ($item in $obj) {
-            $cleaned = Clear-ObjectPlaceholders -obj $item
+            $cleaned = Clear-ObjectPlaceholders -obj $item -visited $visited
             if ($null -ne $cleaned) { $newArray += ,$cleaned }
         }
         if ($newArray.Count -eq 0) {
