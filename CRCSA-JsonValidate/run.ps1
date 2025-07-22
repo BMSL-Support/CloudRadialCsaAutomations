@@ -14,7 +14,11 @@ function Clear-ObjectPlaceholders {
                 $cleaned[$property.Name] = $value
             }
         }
-        return if ($cleaned.Count -eq 0) { $null } else { $cleaned }
+        if ($cleaned.Count -eq 0) {
+            return $null
+        } else {
+            return $cleaned
+        }
     }
     elseif ($obj -is [System.Collections.IEnumerable] -and -not ($obj -is [string])) {
         if ($obj.Count -eq 1 -and $obj[0] -is [string] -and $obj[0].Trim() -match '^@') {
@@ -25,7 +29,11 @@ function Clear-ObjectPlaceholders {
             $cleaned = Clear-ObjectPlaceholders -obj $item
             if ($null -ne $cleaned) { $newArray += ,$cleaned }
         }
-        return if ($newArray.Count -eq 0) { $null } else { $newArray }
+        if ($newArray.Count -eq 0) {
+            return $null
+        } else {
+            return $newArray
+        }
     }
     elseif ($obj -is [string] -and $obj.Trim() -match '^@') {
         return $null
